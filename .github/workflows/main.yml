@@ -40,7 +40,7 @@ jobs:
         flutter doctor
         flutter pub get --verbose
         flutter pub run --verbose intl_utils:generate
-        flutter packages pub run --verbost build_runner build
+        flutter packages pub run --verbose build_runner build
         flutter test --verbose
 
     - name: Flutter Build AppBundle & ABI
