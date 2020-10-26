@@ -11,33 +11,44 @@ env:
 
 jobs:
   build:
-    # The type of runner that the job will run on
     runs-on: ubuntu-20.04
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout Repository
+      uses: actions/checkout@v2
 
-    - uses: actions/setup-java@v1
+    - name: Setup Java
+      uses: actions/setup-java@v1
       with:
         java-version: '1.8'
 
-    - uses: subosito/flutter-action@v1
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v1
       with:
         channel: 'stable'
 
-    - run: sudo apt-get install tree
-    - run: tree
-    - run: flutter doctor
-    - run: flutter pub get --verbose
-    # - run: flutter packages pub run build_runner build
-    # - run: flutter pub run intl_utils:generate
-    - run: flutter test --verbose
-    - run: flutter build apk --target-platform android-arm,android-arm64,android-x64 --split-per-abi --verbose --dart-define=IS_GOOGLEPLAY=false
-    - run: flutter build appbundle --target-platform android-arm,android-arm64,android-x64 --verbose --dart-define=IS_GOOGLEPLAY=false
-    - run: tree
+    - name: Setup intl_utils
+      run: |
+        sudo add-apt-repository ppa:rmescandon/yq -y
+        sudo apt update
+        sudo apt install yq -y
+        yq w -i pubspec.yaml dependencies.intl ^$(yq r pubspec.lock packages.intl.version)
+        yq w -i pubspec.yaml dependencies.intl_utils ^1.8.0
+
+    - name: Flutter Build Pre-Checks
+      run: |
+        flutter doctor
+        flutter pub get --verbose
+        flutter pub run --verbose intl_utils:generate
+        flutter test --verbose
+
+    - name: Flutter Build AppBundle & ABI
+      run: |
+        flutter build apk --target-platform android-arm,android-arm64,android-x64 --split-per-abi --verbose --dart-define=IS_GOOGLEPLAY=false
+        flutter build appbundle --target-platform android-arm,android-arm64,android-x64 --verbose --dart-define=IS_GOOGLEPLAY=false
 
     - uses: actions/upload-artifact@master
-      name: Upload output folder
+      name: Upload Output Folder
       with:
         name: PixEz-flutter
         path: build/app/outputs
@@ -47,3 +58,11 @@ jobs:
       with:
         name: app-release
         path: build/app/outputs/apk/release/*.apk
+
+    - name: Send arm64-v8a build to me via Telegram
+      env:
+        CHAT_ID: ${{ secrets.CHAT_ID }}
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      run: |
+        export OUTPUT="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
+        curl https://api.telegram.org/bot${BOT_TOKEN}/sendDocument -X POST -F chat_id="$CHAT_ID" -F caption="$GITHUB_SHA" -F document="@$OUTPUT"
