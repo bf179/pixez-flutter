@@ -33,10 +33,8 @@ import 'package:pixez/page/hello/ranking/rank_page.dart';
 import 'package:pixez/page/hello/recom/recom_spotlight_page.dart';
 import 'package:pixez/page/hello/setting/setting_page.dart';
 import 'package:pixez/page/login/login_page.dart';
-import 'package:pixez/page/picture/illust_lighting_page.dart';
 import 'package:pixez/page/saucenao/saucenao_page.dart';
 import 'package:pixez/page/search/search_page.dart';
-import 'package:pixez/page/user/users_page.dart';
 import 'package:quick_actions/quick_actions.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -118,7 +116,14 @@ class _AndroidHelloPageState extends State<AndroidHelloPage> {
           selectedItemColor: Theme.of(context).accentColor,
           currentIndex: index,
           onTap: (index) {
-            if (this.index == index) {}
+            if (this.index == index) {
+              tapCount++;
+              if (tapCount == 2) {
+                topStore.setTop("${index + 1}00");
+                tapCount = 0;
+              }
+            } else
+              tapCount = 0;
             setState(() {
               this.index = index;
             });
@@ -141,6 +146,8 @@ class _AndroidHelloPageState extends State<AndroidHelloPage> {
           ]),
     );
   }
+
+  int tapCount = 0;
 
   int index;
   PageController _pageController;
