@@ -25,6 +25,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:pixez/er/fetcher.dart';
+import 'package:pixez/er/kver.dart';
 import 'package:pixez/er/leader.dart';
 import 'package:pixez/er/lprinter.dart';
 import 'package:pixez/generated/l10n.dart';
@@ -33,6 +35,7 @@ import 'package:pixez/models/recommend.dart';
 import 'package:pixez/network/api_client.dart';
 import 'package:pixez/network/onezero_client.dart';
 import 'package:pixez/page/history/history_store.dart';
+import 'package:pixez/page/novel/history/novel_history_store.dart';
 import 'package:pixez/page/search/suggest/search_suggestion_page.dart';
 import 'package:pixez/page/splash/splash_page.dart';
 import 'package:pixez/page/splash/splash_store.dart';
@@ -52,9 +55,12 @@ final MuteStore muteStore = MuteStore();
 final AccountStore accountStore = AccountStore();
 final TagHistoryStore tagHistoryStore = TagHistoryStore();
 final HistoryStore historyStore = HistoryStore();
+final NovelHistoryStore novelHistoryStore = NovelHistoryStore();
 final TopStore topStore = TopStore();
 final BookTagStore bookTagStore = BookTagStore();
 final SplashStore splashStore = SplashStore(OnezeroClient());
+final Fetcher fetcher = new Fetcher();
+final KVer kVer = KVer();
 
 main() {
   initAppWidget();
@@ -129,6 +135,7 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     saveStore?.dispose();
     topStore?.dispose();
+    fetcher.stop();
     super.dispose();
   }
 
@@ -141,6 +148,7 @@ class _MyAppState extends State<MyApp> {
     muteStore.fetchBanIllusts();
     muteStore.fetchBanTags();
     initMethod();
+    fetcher.start();
     super.initState();
   }
 

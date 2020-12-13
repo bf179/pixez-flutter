@@ -13,6 +13,7 @@
  *  this program. If not, see <http://www.gnu.org/licenses/>.
  */
 import 'package:path/path.dart';
+import 'package:pixez/models/illust.dart';
 import 'package:sqflite/sqflite.dart';
 
 class TaskPersist {
@@ -56,6 +57,16 @@ class TaskPersist {
     data[columnStatus] = this.status;
     data[columnFileName] = this.fileName;
     return data;
+  }
+
+  Illusts toIllusts() {
+    var illusts = Illusts();
+    illusts.user = User()
+      ..id = this.userId
+      ..name = this.userName;
+    illusts.title = this.title;
+    illusts.id = this.illustId;
+    return illusts;
   }
 }
 
@@ -137,7 +148,6 @@ create table $tableAccount (
   }
 
   Future<List<TaskPersist>> getAllAccount() async {
-    List result = new List<TaskPersist>();
     List<Map> maps = await db.query(tableAccount, columns: [
       columnId,
       columnUserId,
@@ -147,13 +157,7 @@ create table $tableAccount (
       columnUrl,
       columnFileName,
       columnStatus
-    ]);
-
-    if (maps.length > 0) {
-      maps.forEach((f) {
-        result.add(TaskPersist.fromJson(f));
-      });
-    }
-    return result;
+    ],orderBy: "${columnId} DESC",);
+    return maps.map((e) => TaskPersist.fromJson(e)).toList();
   }
 }
