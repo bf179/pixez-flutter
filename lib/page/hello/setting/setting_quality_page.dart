@@ -259,8 +259,7 @@ class _SettingQualityPageState extends State<SettingQualityPage>
               child: Column(
                 children: <Widget>[
                   Padding(
-                    child:
-                        Text("manga detail quality"),
+                    child: Text(I18n.of(context).manga_detail_page_quality),
                     padding: EdgeInsets.all(16),
                   ),
                   Observer(builder: (_) {
@@ -509,9 +508,9 @@ class _SettingQualityPageState extends State<SettingQualityPage>
                 return SwitchListTile(
                     activeColor: Theme.of(context).accentColor,
                     value: userSetting.hIsNotAllow,
-                    title: Text(
-                        userSetting.hIsNotAllow ? 'H是不行的！' : 'H是可以的！(ˉ﹃ˉ)'),
+                    title: Text('H是不行的！'),
                     onChanged: (value) async {
+                      if (!value) BotToast.showText(text: 'H是可以的！(ˉ﹃ˉ)');
                       userSetting.setHIsNotAllow(value);
                     });
               }),
