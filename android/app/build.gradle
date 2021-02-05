@@ -73,7 +73,7 @@ apply plugin: 'kotlin-android-extensions'
 
 android {
     compileSdkVersion 30
-    ndkVersion '22.0.7026061'
+    // ndkVersion '22.0.7026061'
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
