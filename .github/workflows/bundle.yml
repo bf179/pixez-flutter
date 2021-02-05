@@ -34,6 +34,8 @@ jobs:
         sudo apt install yq -y
         yq w -i pubspec.yaml dependencies.intl ^$(yq r pubspec.lock packages.intl.version)
         yq w -i pubspec.yaml dependencies.intl_utils ^1.8.0
+        # Add a temp fix for pull_to_refresh
+        yq w -i pubspec.yaml dependencies.pull_to_refresh 1.6.3
 
     - name: Flutter Build Pre-Checks
       run: |
