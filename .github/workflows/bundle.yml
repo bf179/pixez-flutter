@@ -27,13 +27,14 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Setup intl_utils
+    - name: Override Dependencies
       run: |
         sudo add-apt-repository ppa:rmescandon/yq -y
         sudo apt update
         sudo apt install yq -y
-        yq w -i pubspec.yaml dependencies.intl ^$(yq r pubspec.lock packages.intl.version)
-        yq w -i pubspec.yaml dependencies.intl_utils ^1.8.0
+        # yq w -i pubspec.yaml dependencies.intl ^$(yq r pubspec.lock packages.intl.version)
+        # yq w -i pubspec.yaml dependencies.intl_utils ^1.8.0
+        
         # Add a temp fix for pull_to_refresh
         yq w -i pubspec.yaml dependencies.pull_to_refresh 1.6.3
 
