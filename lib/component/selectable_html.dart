@@ -64,8 +64,7 @@ class _SelectableHtmlState extends State<SelectableHtml> {
                           (widget.data).toTranslateText(),
                           style: Theme.of(context).textTheme.bodyText1,
                           selectionEnabled: true,
-                          textSelectionControls:
-                              TranslateTextSelectionControls(),
+                          selectionControls: TranslateTextSelectionControls(),
                         )
                       : ExtendedText(
                           (widget.data).toTranslateText(),
@@ -115,8 +114,8 @@ class _SelectableHtmlState extends State<SelectableHtml> {
                 try {
                   if (url.startsWith("pixiv")) {
                     Leader.pushWithUri(context, Uri.parse(url));
-                  }
-                  await launch(url);
+                  } else
+                    await launch(url);
                 } catch (e) {
                   Share.share(url);
                 }
