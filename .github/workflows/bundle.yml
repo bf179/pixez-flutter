@@ -38,12 +38,17 @@ jobs:
     #     # Add a temp fix for pull_to_refresh
     #     yq w -i pubspec.yaml dependencies.pull_to_refresh 1.6.3
 
-    - name: Flutter Build Pre-Checks
+    - name: Flutter Build Pre-Checks Phase 1
       run: |
         flutter doctor
         flutter pub get --verbose
-        flutter pub run --verbose intl_utils:generate
+  
+    - name: Flutter Build Pre-Checks Phase 2
+      run: |
         flutter packages pub run --verbose build_runner build --delete-conflicting-outputs
+
+    - name: Flutter Test
+      run: |
         flutter test --verbose
 
     - name: Flutter Build AppBundle & ABI
