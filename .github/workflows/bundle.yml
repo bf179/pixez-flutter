@@ -27,16 +27,14 @@ jobs:
       with:
         channel: 'stable'
 
-    # - name: Override Dependencies
-    #   run: |
-    #     sudo add-apt-repository ppa:rmescandon/yq -y
-    #     sudo apt update
-    #     sudo apt install yq -y
-    #     # yq w -i pubspec.yaml dependencies.intl ^$(yq r pubspec.lock packages.intl.version)
-    #     # yq w -i pubspec.yaml dependencies.intl_utils ^1.8.0
+    - name: Override Dependencies
+      run: |
+        sudo add-apt-repository ppa:rmescandon/yq -y
+        sudo apt update
+        sudo apt install yq -y
         
-    #     # Add a temp fix for pull_to_refresh
-    #     yq w -i pubspec.yaml dependencies.pull_to_refresh 1.6.3
+        # Add a temp fix for dio
+        yq w -i pubspec.yaml dependencies.dio 4.0.0-beta5
 
     - name: Flutter Build Pre-Checks Phase 1
       run: |
@@ -47,9 +45,10 @@ jobs:
       run: |
         flutter packages pub run --verbose build_runner build --delete-conflicting-outputs
 
-    # - name: Flutter Test
-    #   run: |
-    #     flutter test --verbose --no-sound-null-safety
+    - name: Flutter Test
+      continue-on-error: true
+      run: |
+        flutter test --verbose --no-sound-null-safety
 
     - name: Flutter Build AppBundle & ABI
       run: |
