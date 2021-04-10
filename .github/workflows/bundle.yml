@@ -34,7 +34,7 @@ jobs:
         sudo apt install yq -y
         
         # Add a temp fix for dio
-        yq w -i pubspec.yaml dependencies.dio 4.0.0-beta5
+        # yq w -i pubspec.yaml dependencies.dio 4.0.0-beta5
 
     - name: Flutter Build Pre-Checks Phase 1
       run: |
