@@ -49,13 +49,13 @@ class IsoProgressBean {
 }
 
 class TaskBean {
-  final String? url;
-  final Illusts? illusts;
-  final String? fileName;
-  final String? savePath;
-  final String? source;
-  final String? host;
-  final bool? byPass;
+  String? url;
+  Illusts? illusts;
+  String? fileName;
+  String? savePath;
+  String? source;
+  String? host;
+  bool? byPass;
 
   TaskBean(
       {required this.url,
@@ -110,7 +110,6 @@ class Fetcher {
             TaskBean taskBean = isoContactBean.data;
             urlPool.remove(taskBean.url);
             if (queue.isNotEmpty) {
-              LPrinter.d("removeWhere ${queue.length} ${taskBean.url}");
               queue.removeWhere((element) => element.url == taskBean.url);
               LPrinter.d("c ${queue.length}");
             }
@@ -122,7 +121,6 @@ class Fetcher {
             TaskBean taskBean = isoContactBean.data;
             urlPool.remove(taskBean.url);
             if (queue.isNotEmpty) {
-              LPrinter.d("removeWhere ${queue.length} ${taskBean.url}");
               queue.removeWhere((element) => element.url == taskBean.url);
               LPrinter.d("c ${queue.length}");
             }
@@ -156,8 +154,17 @@ class Fetcher {
 
   nextJob() {
     if (queue.isNotEmpty && urlPool.length < userSetting.maxRunningTask) {
-      var first = queue.first;
-      if (urlPool.contains(first)) return;
+      TaskBean? first = null;
+      for (var i in queue) {
+        if (!urlPool.contains(i.url)) {
+          first = i;
+          break;
+        }
+      }
+      if (first == null) return;
+      first.byPass = userSetting.disableBypassSni;
+      first.source = userSetting.pictureSource;
+      first.host = splashStore.host;
       IsoContactBean isoContactBean =
           IsoContactBean(state: IsoTaskState.APPEND, data: first);
       sendPortToChild?.send(isoContactBean);
@@ -254,7 +261,13 @@ entryPoint(SendPort sendPort) {
                 taskBean.fileName!;
             String trueUrl = taskBean.byPass == true
                 ? taskBean.url!
-                : (Uri.parse(taskBean.url!).replace(host: inHost)).toString();
+                : (Uri.parse(taskBean.url!).replace(
+                        host: inSource == ImageHost || inSource == ImageSHost
+                            ? inHost
+                            : inSource))
+                    .toString();
+            LPrinter.d(
+                "append ======= host:${inHost} source:${inSource} bypass:${inBypass} ${trueUrl}");
             isolateDio.options.headers['Host'] = taskBean.source == ImageHost
                 ? Uri.parse(taskBean.url!).host
                 : taskBean.source;
@@ -268,6 +281,7 @@ entryPoint(SendPort sendPort) {
               sendPort.send(
                   IsoContactBean(state: IsoTaskState.COMPLETE, data: taskBean));
             }).catchError((e) {
+              LPrinter.d("fetcher=======");
               LPrinter.d(e);
               try {
                 splashStore.maybeFetch();
@@ -278,6 +292,7 @@ entryPoint(SendPort sendPort) {
               }
             });
           } catch (e) {
+            LPrinter.d("fetcher=======");
             LPrinter.d(e);
             sendPort.send(
                 IsoContactBean(state: IsoTaskState.ERROR, data: taskBean));
