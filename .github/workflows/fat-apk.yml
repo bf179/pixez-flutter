@@ -39,8 +39,8 @@ jobs:
 
     - name: Flutter Build Pre-Checks Phase 1
       run: |
-        flutter doctor
-        flutter pub get
+        flutter doctor --verbose
+        flutter pub get --verbose
   
     - name: Flutter Build Pre-Checks Phase 2
       run: |
