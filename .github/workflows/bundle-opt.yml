@@ -1,8 +1,20 @@
 name: Build AppBundle & ABI (w/ split-debug-info)
 
 on:	
-  push:	
+  push:
+    paths-ignore:
+      - '.github/workflows/**'
     branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      java_version:
+        description: 'Major or specific Java version used for building'     
+        required: true
+        default: '16'
+      java_distribution:
+        description: 'Java distribution used for building'     
+        required: true
+        default: 'zulu'
 
 env:	
   KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}	
@@ -20,8 +32,8 @@ jobs:
     - name: Setup Java
       uses: actions/setup-java@v2
       with:
-        distribution: 'zulu'
-        java-version: '16'
+        distribution: ${{ github.event.inputs.java_distribution }}
+        java-version: ${{ github.event.inputs.java_version }}
 
     - name: Setup Flutter
       uses: subosito/flutter-action@v1
