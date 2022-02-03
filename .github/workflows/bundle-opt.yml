@@ -8,11 +8,11 @@ on:
   workflow_dispatch:
     inputs:
       java_version:
-        description: 'Major or specific Java version used for building'     
+        description: 'Java version'     
         required: true
         default: '16'
       java_distribution:
-        description: 'Java distribution used for building'     
+        description: 'Java distribution'     
         required: true
         default: 'zulu'
 
