@@ -60,7 +60,20 @@ abstract class _UserSettingBase with Store {
   static const String SAVE_EFFECT_ENABLE_KEY = "save_effect_enable";
   static const String PAD_MODE_KEY = "pad_mode";
   static const String COPY_INFO_TEXT_KEY = "copy_info_text";
+  static const String NAME_EVAL_KEY = "name_eval";
+  static const String CROSS_ADAPT_KEY = "cross_adapt";
+  static const String CROSS_ADAPT_WIDTH_KEY = "cross_adapt_width";
+  static const String H_CROSS_ADAPT_KEY = "cross_adapt";
+  static const String H_CROSS_ADAPT_WIDTH_KEY = "cross_adapt_width";
 
+  @observable
+  int crossAdapterWidth = 200;
+  @observable
+  bool crossAdapt = false;
+  @observable
+  int hCrossAdapterWidth = 200;
+  @observable
+  bool hCrossAdapt = false;
   @observable
   String copyInfoText =
       "title:{title}\npainter:{user_name}\nillust id:{illust_id}";
@@ -124,10 +137,50 @@ abstract class _UserSettingBase with Store {
   bool saveEffectEnable = false;
   @observable
   int padMode = 0;
+  @observable
+  int fileNameEval = 0;
+  @observable
+  String? nameEval;
 
   @observable
   String? format = "";
   static const String intialFormat = "{illust_id}_p{part}";
+
+  @action
+  setCrossAdapt(bool value) async {
+    crossAdapt = value;
+    await prefs.setBool(CROSS_ADAPT_KEY, value);
+  }
+
+  @action
+  setCrossAdapterWidth(int value) async {
+    crossAdapterWidth = value;
+  }
+
+  persisitCrossAdapterWidth(int value) async {
+    await prefs.setInt(CROSS_ADAPT_WIDTH_KEY, value);
+  }
+
+  @action
+  setHCrossAdapt(bool value) async {
+    hCrossAdapt = value;
+    await prefs.setBool(H_CROSS_ADAPT_KEY, value);
+  }
+
+  @action
+  setHCrossAdapterWidth(int value) async {
+    hCrossAdapterWidth = value;
+  }
+
+  persisitHCrossAdapterWidth(int value) async {
+    await prefs.setInt(H_CROSS_COUNT_KEY, value);
+  }
+
+  @action
+  setNameEval(String value) async {
+    await prefs.setString(NAME_EVAL_KEY, value);
+    nameEval = value;
+  }
 
   @action
   setIsClearnOldFormatFile(bool v) async {
@@ -157,6 +210,12 @@ abstract class _UserSettingBase with Store {
   setFollowAfterStar(bool value) async {
     await prefs.setBool(IS_FOLLOW_AFTER_STAR, value);
     followAfterStar = value;
+  }
+
+  @action
+  setFileNameEval(int value) async {
+    await prefs.setInt("file_name_eval", value);
+    fileNameEval = value;
   }
 
   Color _stringToColor(String colorString) {
@@ -262,6 +321,12 @@ abstract class _UserSettingBase with Store {
     saveEffectEnable = prefs.getBool(SAVE_EFFECT_ENABLE_KEY) ?? false;
     padMode = prefs.getInt(PAD_MODE_KEY) ?? 0;
     copyInfoText = prefs.getString(COPY_INFO_TEXT_KEY) ?? copyInfoText;
+    fileNameEval = prefs.getInt("file_name_eval") ?? 0;
+    nameEval = prefs.getString(NAME_EVAL_KEY);
+    crossAdapt = prefs.getBool(CROSS_ADAPT_KEY) ?? false;
+    hCrossAdapt = prefs.getBool(CROSS_ADAPT_KEY) ?? false;
+    crossAdapterWidth = prefs.getInt(CROSS_ADAPT_WIDTH_KEY) ?? 200;
+    hCrossAdapterWidth = prefs.getInt(H_CROSS_ADAPT_WIDTH_KEY) ?? 200;
 
     for (var i in ThemeMode.values) {
       if (i.index == themeModeIndex) {
