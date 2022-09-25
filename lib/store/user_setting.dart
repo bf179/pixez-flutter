@@ -15,6 +15,7 @@
  */
 
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -173,7 +174,7 @@ abstract class _UserSettingBase with Store {
   }
 
   persisitHCrossAdapterWidth(int value) async {
-    await prefs.setInt(H_CROSS_COUNT_KEY, value);
+    await prefs.setInt(H_CROSS_ADAPT_WIDTH_KEY, value);
   }
 
   @action
@@ -325,8 +326,10 @@ abstract class _UserSettingBase with Store {
     nameEval = prefs.getString(NAME_EVAL_KEY);
     crossAdapt = prefs.getBool(CROSS_ADAPT_KEY) ?? false;
     hCrossAdapt = prefs.getBool(CROSS_ADAPT_KEY) ?? false;
-    crossAdapterWidth = prefs.getInt(CROSS_ADAPT_WIDTH_KEY) ?? 100;
-    hCrossAdapterWidth = prefs.getInt(H_CROSS_ADAPT_WIDTH_KEY) ?? 100;
+    final crossAdapterV = prefs.getInt(CROSS_ADAPT_WIDTH_KEY) ?? 100;
+    final hCrossAdapterV = prefs.getInt(H_CROSS_ADAPT_WIDTH_KEY) ?? 100;
+    crossAdapterWidth = min(2160, max(100, crossAdapterV));
+    hCrossAdapterWidth = min(2160, max(100, hCrossAdapterV));
 
     for (var i in ThemeMode.values) {
       if (i.index == themeModeIndex) {
