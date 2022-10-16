@@ -18,11 +18,13 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:pixez/component/illust_card.dart';
 import 'package:pixez/component/pixiv_image.dart';
 import 'package:pixez/component/spotlight_card.dart';
+import 'package:pixez/er/lprinter.dart';
 import 'package:pixez/exts.dart';
 import 'package:pixez/i18n.dart';
 import 'package:pixez/lighting/lighting_store.dart';
@@ -51,31 +53,38 @@ class _RecomSpolightPageState extends State<RecomSpolightPage>
   late LightingStore _lightingStore;
   late RecomUserStore _recomUserStore;
   late StreamSubscription<String> subscription;
-  late RefreshController _easyRefreshController;
+  late EasyRefreshController _easyRefreshController;
+  late ScrollController _scrollController;
 
   @override
   void dispose() {
     subscription.cancel();
+    _scrollController.dispose();
+    _easyRefreshController.dispose();
     super.dispose();
   }
 
   @override
   void initState() {
-    _easyRefreshController = RefreshController(initialRefresh: true);
+    _scrollController = ScrollController();
+    _easyRefreshController = EasyRefreshController(
+        controlFinishLoad: true, controlFinishRefresh: true);
     _recomUserStore = RecomUserStore();
     spotlightStore = SpotlightStore(null);
     _lightingStore = widget.lightingStore ??
         LightingStore(
             ApiForceSource(
                 futureGet: (e) => apiClient.getRecommend(), glanceKey: "recom"),
-            _easyRefreshController);
+            null);
     if (widget.lightingStore != null) {
-      _lightingStore.controller = _easyRefreshController;
+      _lightingStore.easyRefreshController = _easyRefreshController;
     }
+    _lightingStore.easyRefreshController =
+        _lightingStore.easyRefreshController ?? _easyRefreshController;
     super.initState();
     subscription = topStore.topStream.listen((event) {
       if (event == "100") {
-        _easyRefreshController.position?.jumpTo(0);
+        _scrollController.position.jumpTo(0);
       }
     });
   }
@@ -95,77 +104,54 @@ class _RecomSpolightPageState extends State<RecomSpolightPage>
   bool backToTopVisible = false;
 
   Widget buildEasyRefresh(BuildContext context) {
-    return Observer(builder: (_) {
-      return Stack(
-        children: [
-          NotificationListener<ScrollNotification>(
-            onNotification: (ScrollNotification notification) {
-              ScrollMetrics metrics = notification.metrics;
-              if (backToTopVisible == metrics.atEdge && mounted) {
-                setState(() {
-                  backToTopVisible = !backToTopVisible;
-                });
-              }
-              return true;
-            },
-            child: NestedScrollView(
-              body: SmartRefresher(
-                controller: _easyRefreshController,
-                enablePullDown: true,
-                enablePullUp: true,
-                header: (Platform.isAndroid)
-                    ? MaterialClassicHeader(
-                        color: Theme.of(context).colorScheme.secondary,
-                      )
-                    : ClassicHeader(),
-                footer: _buildCustomFooter(),
-                onRefresh: () async {
-                  await fetchT();
-                },
-                onLoading: () async {
-                  await _lightingStore.fetchNext();
-                },
-                child: _buildWaterFall(context),
-              ),
-              headerSliverBuilder:
-                  (BuildContext context, bool innerBoxIsScrolled) {
-                return [
-                  SliverAppBar(
-                    elevation: 0.0,
-                    titleSpacing: 0.0,
-                    automaticallyImplyLeading: false,
-                    backgroundColor: Theme.of(context).canvasColor,
-                    title: _buildFirstRow(context),
+    return Stack(
+      children: [
+        EasyRefresh(
+          controller: _easyRefreshController,
+          header: Platform.isIOS ? CupertinoHeader() : MaterialHeader(),
+          onRefresh: () async {
+            await fetchT();
+          },
+          refreshOnStart: true,
+          onLoad: () async {
+            await _lightingStore.fetchNext();
+          },
+          child: Observer(builder: (context) {
+            return _buildWaterFall(context);
+          }),
+        ),
+        Align(
+          child: Visibility(
+            visible: backToTopVisible,
+            child: Opacity(
+              opacity: 0.5,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    height: 24.0,
+                    margin: EdgeInsets.only(bottom: 8.0),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.arrow_drop_up_outlined,
+                        size: 24,
+                      ),
+                      onPressed: () {
+                        _scrollController.position.jumpTo(0);
+                      },
+                    ),
+                  ),
+                  Container(
+                    height: 80,
                   )
-                ];
-              },
+                ],
+              ),
             ),
           ),
-          Align(
-            child: Visibility(
-              visible: backToTopVisible,
-              child: Opacity(
-                opacity: 0.5,
-                child: Container(
-                  height: 24.0,
-                  margin: EdgeInsets.only(bottom: 8.0),
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.arrow_drop_up_outlined,
-                      size: 24,
-                    ),
-                    onPressed: () {
-                      _easyRefreshController.position?.jumpTo(0);
-                    },
-                  ),
-                ),
-              ),
-            ),
-            alignment: Alignment.bottomCenter,
-          )
-        ],
-      );
-    });
+          alignment: Alignment.bottomCenter,
+        )
+      ],
+    );
   }
 
   CustomFooter _buildCustomFooter() {
@@ -194,9 +180,25 @@ class _RecomSpolightPageState extends State<RecomSpolightPage>
   Widget _buildWaterFall(BuildContext context) {
     _lightingStore.iStores
         .removeWhere((element) => element.illusts!.hateByUser());
-    return Observer(builder: (context) {
-      return CustomScrollView(
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification notification) {
+        ScrollMetrics metrics = notification.metrics;
+        if (backToTopVisible == metrics.atEdge && mounted) {
+          setState(() {
+            backToTopVisible = !backToTopVisible;
+          });
+        }
+        return true;
+      },
+      child: CustomScrollView(
+        controller: _scrollController,
         slivers: [
+          SliverToBoxAdapter(
+            child: Container(height: MediaQuery.of(context).padding.top),
+          ),
+          SliverToBoxAdapter(
+            child: _buildFirstRow(context),
+          ),
           SliverToBoxAdapter(
             child: _buidTagSpotlightRow(context),
           ),
@@ -205,8 +207,8 @@ class _RecomSpolightPageState extends State<RecomSpolightPage>
           ),
           _buildWaterfall(context, MediaQuery.of(context).orientation)
         ],
-      );
-    });
+      ),
+    );
   }
 
   int _buildSliderValue(BuildContext context, Orientation orientation) {
