@@ -17,6 +17,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:bot_toast/bot_toast.dart';
+import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
@@ -25,6 +26,7 @@ import 'package:pixez/constants.dart';
 import 'package:pixez/er/fetcher.dart';
 import 'package:pixez/er/hoster.dart';
 import 'package:pixez/er/kver.dart';
+import 'package:pixez/i18n.dart';
 import 'package:pixez/network/onezero_client.dart';
 import 'package:pixez/page/history/history_store.dart';
 import 'package:pixez/page/novel/history/novel_history_store.dart';
@@ -102,8 +104,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  // CustomFooter _buildCustomFooter() {
+  //   return CustomFooter(
+  //     builder: (BuildContext context, LoadStatus? mode) {
+  //       Widget body;
+  //       if (mode == LoadStatus.idle) {
+  //         body = Text(I18n.of(context).pull_up_to_load_more);
+  //       } else if (mode == LoadStatus.loading) {
+  //         body = CircularProgressIndicator();
+  //       } else if (mode == LoadStatus.failed) {
+  //         body = Text(I18n.of(context).loading_failed_retry_message);
+  //       } else if (mode == LoadStatus.canLoading) {
+  //         body = Text(I18n.of(context).let_go_and_load_more);
+  //       } else {
+  //         body = Text(I18n.of(context).no_more_data);
+  //       }
+  //       return Container(
+  //         height: 55.0,
+  //         child: Center(child: body),
+  //       );
+  //     },
+  //   );
+  // }
   @override
   void initState() {
+    EasyRefresh.defaultHeaderBuilder = () => ClassicHeader();
     Hoster.init();
     Hoster.syncRemote();
     userSetting.init();

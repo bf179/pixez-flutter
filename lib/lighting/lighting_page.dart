@@ -29,6 +29,22 @@ import 'package:pixez/main.dart';
 import 'package:pixez/models/illust.dart';
 import 'package:waterfall_flow/waterfall_flow.dart';
 
+class WaterFallLoading extends StatefulWidget {
+  const WaterFallLoading({Key? key}) : super(key: key);
+
+  @override
+  State<WaterFallLoading> createState() => _WaterFallLoadingState();
+}
+
+class _WaterFallLoadingState extends State<WaterFallLoading> {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
 class LightingList extends StatefulWidget {
   final LightSource source;
   final Widget? header;
@@ -110,11 +126,15 @@ class _LightingListState extends State<LightingList> {
             Align(
               child: Visibility(
                 visible: backToTopVisible,
-                child: ListIndicator(
-                  onTop: () {
-                    if (_scrollController.hasClients)
-                      _scrollController.position.jumpTo(0);
-                  },
+                child: Container(
+                  margin: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).padding.bottom),
+                  child: ListIndicator(
+                    onTop: () {
+                      if (_scrollController.hasClients)
+                        _scrollController.position.jumpTo(0);
+                    },
+                  ),
                 ),
               ),
               alignment: Alignment.bottomLeft,
@@ -180,40 +200,45 @@ class _LightingListState extends State<LightingList> {
 
   Widget _buildContent(context) {
     return _store.errorMessage != null
-        ? Container(
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Container(
-                  height: 50,
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child:
-                      Text(':(', style: Theme.of(context).textTheme.headline4),
-                ),
-                TextButton(
-                    onPressed: () {
-                      _store.fetch(force: true);
-                    },
-                    child: Text(I18n.of(context).retry)),
-                Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      (_store.errorMessage?.contains("400") == true
-                          ? '${I18n.of(context).error_400_hint}\n ${_store.errorMessage}'
-                          : '${_store.errorMessage}'),
-                    ))
-              ],
-            ),
-          )
+        ? _buildErrorContent(context)
         : _store.iStores.isNotEmpty
             ? (widget.header != null
                 ? _buildWithHeader(context)
                 : _buildWithoutHeader(context))
-            : Container();
+            : Container(
+                child: _store.refreshing ? WaterFallLoading() : Container(),
+              );
+  }
+
+  Container _buildErrorContent(context) {
+    return Container(
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Container(
+            height: 50,
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(':(', style: Theme.of(context).textTheme.headline4),
+          ),
+          TextButton(
+              onPressed: () {
+                _store.fetch(force: true);
+              },
+              child: Text(I18n.of(context).retry)),
+          Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                (_store.errorMessage?.contains("400") == true
+                    ? '${I18n.of(context).error_400_hint}\n ${_store.errorMessage}'
+                    : '${_store.errorMessage}'),
+              ))
+        ],
+      ),
+    );
   }
 
   Widget _buildWithHeader(BuildContext context) {
