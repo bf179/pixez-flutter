@@ -17,6 +17,7 @@
 import 'dart:io';
 
 import 'package:easy_refresh/easy_refresh.dart';
+import 'package:pixez/component/pixez_default_header.dart';
 import 'package:pixez/exts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
@@ -75,13 +76,15 @@ class _NovelRecomPageState extends State<NovelRecomPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Observer(builder: (context) {
-      return EasyRefresh.builder(
-        onRefresh: () => _store.fetch(),
-        onLoad: () => _store.next(),
-        controller: _easyRefreshController,
-        refreshOnStart: true,
-        childBuilder: (context, physics) => CustomScrollView(
+    return EasyRefresh.builder(
+      header: PixezDefault.header(context),
+      onRefresh: () => _store.fetch(),
+      onLoad: () => _store.next(),
+      controller: _easyRefreshController,
+      callRefreshOverOffset: 10,
+      refreshOnStart: true,
+      childBuilder: (context, physics) => Observer(builder: (context) {
+        return CustomScrollView(
           physics: physics,
           slivers: [
             SliverAppBar(
@@ -93,9 +96,9 @@ class _NovelRecomPageState extends State<NovelRecomPage> {
             ),
             if (_store.novels.isNotEmpty) _buildSliverList(),
           ],
-        ),
-      );
-    });
+        );
+      }),
+    );
   }
 
   SliverList _buildSliverList() {
