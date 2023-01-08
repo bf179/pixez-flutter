@@ -19,6 +19,7 @@ import 'dart:io';
 import 'package:bot_toast/bot_toast.dart';
 import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:pixez/component/ban_page.dart';
@@ -207,85 +208,87 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Scaffold(
-      extendBody: true,
-      extendBodyBehindAppBar: true,
-      floatingActionButton: GestureDetector(
-        onLongPress: () {
-          _showBookMarkTag();
-        },
-        child: Observer(builder: (context) {
-          return Visibility(
-            visible: _illustStore.errorMessage == null,
-            child: FloatingActionButton(
-              heroTag: widget.id,
-              backgroundColor: Colors.white,
-              onPressed: () => _illustStore.star(
-                  restrict:
-                      userSetting.defaultPrivateLike ? "private" : "public"),
-              child: Observer(builder: (_) {
-                return StarIcon(
-                  state: _illustStore.state,
-                );
-              }),
-            ),
-          );
-        }),
-      ),
-      body: Observer(builder: (_) {
-        if (!tempView)
-          for (var i in muteStore.banillusts) {
-            if (i.illustId == widget.id.toString()) {
-              return BanPage(
-                name: "${I18n.of(context).illust}\n${i.name}\n",
-                onPressed: () {
-                  setState(() {
-                    tempView = true;
-                  });
-                },
-              );
-            }
-          }
-        if (!tempView && _illustStore.illusts != null) {
-          for (var j in muteStore.banUserIds) {
-            if (j.userId == _illustStore.illusts!.user.id.toString()) {
-              return BanPage(
-                name: "${I18n.of(context).painter}\n${j.name}\n",
-                onPressed: () {
-                  setState(() {
-                    tempView = true;
-                  });
-                },
-              );
-            }
-          }
-          for (var t in muteStore.banTags) {
-            for (var t1 in _illustStore.illusts!.tags) {
-              if (t.name == t1.name)
+    return SelectionArea(
+      child: Scaffold(
+        extendBody: true,
+        extendBodyBehindAppBar: true,
+        floatingActionButton: GestureDetector(
+          onLongPress: () {
+            _showBookMarkTag();
+          },
+          child: Observer(builder: (context) {
+            return Visibility(
+              visible: _illustStore.errorMessage == null,
+              child: FloatingActionButton(
+                heroTag: widget.id,
+                backgroundColor: Colors.white,
+                onPressed: () => _illustStore.star(
+                    restrict:
+                        userSetting.defaultPrivateLike ? "private" : "public"),
+                child: Observer(builder: (_) {
+                  return StarIcon(
+                    state: _illustStore.state,
+                  );
+                }),
+              ),
+            );
+          }),
+        ),
+        body: Observer(builder: (_) {
+          if (!tempView)
+            for (var i in muteStore.banillusts) {
+              if (i.illustId == widget.id.toString()) {
                 return BanPage(
-                  name: "${I18n.of(context).tag}\n${t.name}\n",
+                  name: "${I18n.of(context).illust}\n${i.name}\n",
                   onPressed: () {
                     setState(() {
                       tempView = true;
                     });
                   },
                 );
+              }
+            }
+          if (!tempView && _illustStore.illusts != null) {
+            for (var j in muteStore.banUserIds) {
+              if (j.userId == _illustStore.illusts!.user.id.toString()) {
+                return BanPage(
+                  name: "${I18n.of(context).painter}\n${j.name}\n",
+                  onPressed: () {
+                    setState(() {
+                      tempView = true;
+                    });
+                  },
+                );
+              }
+            }
+            for (var t in muteStore.banTags) {
+              for (var t1 in _illustStore.illusts!.tags) {
+                if (t.name == t1.name)
+                  return BanPage(
+                    name: "${I18n.of(context).tag}\n${t.name}\n",
+                    onPressed: () {
+                      setState(() {
+                        tempView = true;
+                      });
+                    },
+                  );
+              }
             }
           }
-        }
-        return Container(
-          child: Stack(
-            children: [
-              _buildContent(context, _illustStore.illusts),
-              _buildAppbar()
-            ],
-          ),
-        );
-      }),
+          return Container(
+            child: Stack(
+              children: [
+                _buildContent(context, _illustStore.illusts),
+                _buildAppbar()
+              ],
+            ),
+          );
+        }),
+      ),
     );
   }
 
-  Widget colorText(String text, BuildContext context) => SelectionArea(
+  Widget colorText(String text, BuildContext context) => Container(
         child: Text(
           text,
           style: TextStyle(color: Theme.of(context).colorScheme.secondary),
@@ -327,7 +330,8 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: <Widget>[
-                      Text(I18n.of(context).illust_id),
+                      SelectionContainer.disabled(
+                          child: Text(I18n.of(context).illust_id)),
                       Container(
                         width: 10.0,
                       ),
@@ -335,7 +339,8 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
                       Container(
                         width: 20.0,
                       ),
-                      Text(I18n.of(context).pixel),
+                      SelectionContainer.disabled(
+                          child: Text(I18n.of(context).pixel)),
                       Container(
                         width: 10.0,
                       ),
@@ -345,7 +350,8 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: <Widget>[
-                      Text(I18n.of(context).total_view),
+                      SelectionContainer.disabled(
+                          child: Text(I18n.of(context).total_view)),
                       Container(
                         width: 10.0,
                       ),
@@ -353,7 +359,8 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
                       Container(
                         width: 20.0,
                       ),
-                      Text(I18n.of(context).total_bookmark),
+                      SelectionContainer.disabled(
+                          child: Text(I18n.of(context).total_bookmark)),
                       Container(
                         width: 10.0,
                       ),
@@ -373,14 +380,9 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
                 runSpacing: 0,
                 children: [
                   if (data.illustAIType == 2)
-                    Text(
-                        "${I18n.of(context).ai_generated}",
-                        style:
-                        Theme.of(context)
-                            .textTheme
-                            .caption!
-                            .copyWith(color: Theme.of(context).colorScheme.secondary)
-                    ),
+                    Text("${I18n.of(context).ai_generated}",
+                        style: Theme.of(context).textTheme.caption!.copyWith(
+                            color: Theme.of(context).colorScheme.secondary)),
                   for (var f in data.tags) buildRow(context, f)
                 ],
               ),
@@ -399,18 +401,20 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(8.0),
-              child: TextButton(
-                child: Text(
-                  I18n.of(context).view_comment,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyText1!,
+              child: SelectionContainer.disabled(
+                child: TextButton(
+                  child: Text(
+                    I18n.of(context).view_comment,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyText1!,
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(MaterialPageRoute(
+                        builder: (BuildContext context) => CommentPage(
+                              id: data.id,
+                            )));
+                  },
                 ),
-                onPressed: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                      builder: (BuildContext context) => CommentPage(
-                            id: data.id,
-                          )));
-                },
               ),
             ),
           ),
@@ -784,23 +788,19 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: <Widget>[
-                  SelectionArea(
-                    child: Text(
-                      illust.title,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.secondary),
-                    ),
+                  Text(
+                    illust.title,
+                    style: Theme.of(context).textTheme.bodyText2,
                   ),
                   Container(
                     height: 4.0,
                   ),
                   Hero(
                     tag: illust.user.name + this.hashCode.toString(),
-                    child: SelectionArea(
-                      child: Text(
-                        illust.user.name,
-                        style: Theme.of(context).textTheme.bodyText2,
-                      ),
+                    child: Text(
+                      illust.user.name,
+                      style: TextStyle(
+                          color: Theme.of(context).textTheme.caption!.color),
                     ),
                   ),
                   Text(

@@ -120,7 +120,7 @@ class _RecomSpolightPageState extends State<RecomSpolightPage>
         ),
         EasyRefresh.builder(
           controller: _easyRefreshController,
-          callLoadOverOffset: 5,
+          callLoadOverOffset: Platform.isIOS ? 2 : 5,
           header: PixezDefault.header(context),
           onRefresh: () async {
             await fetchT();
@@ -133,17 +133,6 @@ class _RecomSpolightPageState extends State<RecomSpolightPage>
             builder: (context) => _buildWaterFall(context, physics),
           ),
         ),
-        Align(
-          child: Visibility(
-            visible: backToTopVisible,
-            child: Container(
-              child: ListIndicator(),
-              margin: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).padding.bottom),
-            ),
-          ),
-          alignment: Alignment.bottomCenter,
-        )
       ],
     );
   }
