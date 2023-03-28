@@ -146,7 +146,7 @@ class _UsersPageState extends State<UsersPage> with TickerProviderStateMixin {
         }
       }
 
-      if (userStore.errorMessage != null) {
+      if (userStore.errorMessage != null && userStore.user != null) {
         if (userStore.errorMessage!.contains("404"))
           return Scaffold(
             appBar: AppBar(),
@@ -206,6 +206,7 @@ class _UsersPageState extends State<UsersPage> with TickerProviderStateMixin {
     return Container(
       child: Scaffold(
         body: NestedScrollView(
+          controller: _scrollController,
           body: TabBarView(controller: _tabController, children: [
             WorksPage(
               id: widget.id,
@@ -217,12 +218,11 @@ class _UsersPageState extends State<UsersPage> with TickerProviderStateMixin {
               store: _bookmarkStore,
               portal: "Book",
             ),
-            Container(
-                child: userStore.userDetail != null
-                    ? UserDetailPage(
-                        key: PageStorageKey('Tab2'),
-                        userDetail: userStore.userDetail!)
-                    : Container()),
+            UserDetailPage(
+              key: PageStorageKey('Tab2'),
+              userDetail: userStore.userDetail,
+              isNewNested: true,
+            ),
           ]),
           headerSliverBuilder:
               (BuildContext context, bool? innerBoxIsScrolled) {
@@ -255,56 +255,8 @@ class _UsersPageState extends State<UsersPage> with TickerProviderStateMixin {
               color: Theme.of(context).cardColor,
               child: Stack(
                 children: <Widget>[
-                  Container(
-                      width: MediaQuery.of(context).size.width,
-                      height: MediaQuery.of(context).padding.top + 160,
-                      child: userStore.userDetail != null
-                          ? userStore.userDetail!.profile
-                                      .background_image_url !=
-                                  null
-                              ? InkWell(
-                                  onLongPress: () {
-                                    showDialog(
-                                        context: context,
-                                        builder: (context) {
-                                          return AlertDialog(
-                                            title: Text(I18n.of(context).save),
-                                            actions: [
-                                              TextButton(
-                                                  onPressed: () async {
-                                                    Navigator.of(context).pop();
-                                                  },
-                                                  child: Text(
-                                                      I18n.of(context).cancel)),
-                                              TextButton(
-                                                  onPressed: () async {
-                                                    Navigator.of(context).pop();
-                                                    await _saveUserBg(userStore
-                                                        .userDetail!
-                                                        .profile
-                                                        .background_image_url!);
-                                                  },
-                                                  child: Text(
-                                                      I18n.of(context).ok)),
-                                            ],
-                                          );
-                                        });
-                                  },
-                                  child: CachedNetworkImage(
-                                    imageUrl: userStore.userDetail!.profile
-                                        .background_image_url!,
-                                    fit: BoxFit.fitWidth,
-                                    cacheManager: pixivCacheManager,
-                                    httpHeaders: Hoster.header(
-                                        url: userStore.userDetail!.profile
-                                            .background_image_url),
-                                  ),
-                                )
-                              : Container(
-                                  color:
-                                      Theme.of(context).colorScheme.secondary,
-                                )
-                          : Container()),
+                  _buildBackground(context),
+                  _buildFakeBg(context),
                   Align(
                     alignment: Alignment.bottomCenter,
                     child: Column(
@@ -326,50 +278,53 @@ class _UsersPageState extends State<UsersPage> with TickerProviderStateMixin {
                         ),
                       ],
                     ),
-                  ),
+                  )
                 ],
               ),
             ),
           ),
-          bottom: TabBar(
-            controller: _tabController,
-            indicator: MD2Indicator(
-                indicatorHeight: 3,
-                indicatorColor: Theme.of(context).colorScheme.primary,
-                indicatorSize: MD2IndicatorSize.normal),
-            onTap: (index) {
-              setState(() {
-                _tabIndex = index;
-              });
-            },
-            labelColor: Theme.of(context).textTheme.bodyText1!.color,
-            indicatorSize: TabBarIndicatorSize.label,
-            tabs: [
-              GestureDetector(
-                onDoubleTap: () {
-                  if (_tabIndex == 0) _scrollController.position.jumpTo(0);
-                },
-                child: Tab(
-                  text: I18n.of(context).works,
+          bottom: ColoredTabBar(
+            Theme.of(context).cardColor,
+            TabBar(
+              controller: _tabController,
+              indicator: MD2Indicator(
+                  indicatorHeight: 3,
+                  indicatorColor: Theme.of(context).colorScheme.primary,
+                  indicatorSize: MD2IndicatorSize.normal),
+              onTap: (index) {
+                setState(() {
+                  _tabIndex = index;
+                });
+              },
+              labelColor: Theme.of(context).textTheme.bodyText1!.color,
+              indicatorSize: TabBarIndicatorSize.label,
+              tabs: [
+                GestureDetector(
+                  onDoubleTap: () {
+                    if (_tabIndex == 0) _scrollController.position.jumpTo(0);
+                  },
+                  child: Tab(
+                    text: I18n.of(context).works,
+                  ),
                 ),
-              ),
-              GestureDetector(
-                onDoubleTap: () {
-                  if (_tabIndex == 1) _scrollController.position.jumpTo(0);
-                },
-                child: Tab(
-                  text: I18n.of(context).bookmark,
+                GestureDetector(
+                  onDoubleTap: () {
+                    if (_tabIndex == 1) _scrollController.position.jumpTo(0);
+                  },
+                  child: Tab(
+                    text: I18n.of(context).bookmark,
+                  ),
                 ),
-              ),
-              GestureDetector(
-                onDoubleTap: () {
-                  if (_tabIndex == 2) _scrollController.position.jumpTo(0);
-                },
-                child: Tab(
-                  text: I18n.of(context).detail,
+                GestureDetector(
+                  onDoubleTap: () {
+                    if (_tabIndex == 2) _scrollController.position.jumpTo(0);
+                  },
+                  child: Tab(
+                    text: I18n.of(context).detail,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -418,6 +373,83 @@ class _UsersPageState extends State<UsersPage> with TickerProviderStateMixin {
       //   pinned: true,
       // ),
     ];
+  }
+
+  //为什么会需要这段？因为外部Column无法使子元素贴紧，子元素之间在真机上总是有spacing，所以底部又需要一个cardColor来填充
+  Widget _buildFakeBg(BuildContext context) {
+    return Align(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            height: 55,
+            color: Theme.of(context).cardColor,
+          ),
+          Container(
+            color: Theme.of(context).cardColor,
+            child: Column(
+              children: <Widget>[
+                _buildFakeNameFollow(context),
+                Container(
+                  height: 60,
+                ),
+                Tab(
+                  text: " ",
+                )
+              ],
+            ),
+          ),
+        ],
+      ),
+      alignment: Alignment.bottomCenter,
+    );
+  }
+
+  Widget _buildBackground(BuildContext context) {
+    return Container(
+        width: MediaQuery.of(context).size.width,
+        height: MediaQuery.of(context).padding.top + 160,
+        child: userStore.userDetail != null
+            ? userStore.userDetail!.profile.background_image_url != null
+                ? InkWell(
+                    onLongPress: () {
+                      showDialog(
+                          context: context,
+                          builder: (context) {
+                            return AlertDialog(
+                              title: Text(I18n.of(context).save),
+                              actions: [
+                                TextButton(
+                                    onPressed: () async {
+                                      Navigator.of(context).pop();
+                                    },
+                                    child: Text(I18n.of(context).cancel)),
+                                TextButton(
+                                    onPressed: () async {
+                                      Navigator.of(context).pop();
+                                      await _saveUserBg(userStore.userDetail!
+                                          .profile.background_image_url!);
+                                    },
+                                    child: Text(I18n.of(context).ok)),
+                              ],
+                            );
+                          });
+                    },
+                    child: CachedNetworkImage(
+                      imageUrl:
+                          userStore.userDetail!.profile.background_image_url!,
+                      fit: BoxFit.fitWidth,
+                      cacheManager: pixivCacheManager,
+                      httpHeaders: Hoster.header(
+                          url: userStore
+                              .userDetail!.profile.background_image_url),
+                    ),
+                  )
+                : Container(
+                    color: Theme.of(context).colorScheme.secondary,
+                  )
+            : Container());
   }
 
   PopupMenuButton<int> _buildPopMenu(BuildContext context) {
@@ -514,6 +546,29 @@ class _UsersPageState extends State<UsersPage> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildFakeNameFollow(BuildContext context) {
+    return Container(
+      width: MediaQuery.of(context).size.width,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                userStore.user?.name ?? "",
+                style: Theme.of(context).textTheme.headline6,
+              ),
+              Text(
+                userStore.userDetail == null
+                    ? ""
+                    : '${userStore.userDetail!.profile.total_follow_users} ${I18n.of(context).follow}',
+                style: Theme.of(context).textTheme.caption,
+              )
+            ]),
+      ),
+    );
+  }
+
   Widget _buildNameFollow(BuildContext context) {
     return Container(
       color: Theme.of(context).cardColor,
@@ -577,7 +632,29 @@ class _UsersPageState extends State<UsersPage> with TickerProviderStateMixin {
   }
 
   Widget _buildHeader(BuildContext context) {
-    Widget w = Container(
+    Widget w = _buildAvatarFollow(context);
+    return Stack(
+      children: <Widget>[
+        Container(
+          padding: EdgeInsets.only(top: 25),
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+            height: 55.0,
+            child: Container(
+              color: Theme.of(context).cardColor,
+            ),
+          ),
+        ),
+        Align(
+          child: w,
+          alignment: Alignment.bottomCenter,
+        )
+      ],
+    );
+  }
+
+  Container _buildAvatarFollow(BuildContext context) {
+    return Container(
       child: Observer(
         builder: (_) => Row(
           mainAxisSize: MainAxisSize.max,
@@ -688,24 +765,6 @@ class _UsersPageState extends State<UsersPage> with TickerProviderStateMixin {
           ],
         ),
       ),
-    );
-    return Stack(
-      children: <Widget>[
-        Container(
-          padding: EdgeInsets.only(top: 25),
-          alignment: Alignment.bottomCenter,
-          child: SizedBox(
-            height: 55.0,
-            child: Container(
-              color: Theme.of(context).cardColor,
-            ),
-          ),
-        ),
-        Align(
-          child: w,
-          alignment: Alignment.bottomCenter,
-        )
-      ],
     );
   }
 
@@ -819,4 +878,20 @@ class StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(SliverPersistentHeaderDelegate oldDelegate) {
     return false;
   }
+}
+
+class ColoredTabBar extends Container implements PreferredSizeWidget {
+  ColoredTabBar(this.color, this.tabBar);
+
+  final Color color;
+  final TabBar tabBar;
+
+  @override
+  Size get preferredSize => tabBar.preferredSize;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        color: color,
+        child: tabBar,
+      );
 }
