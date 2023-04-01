@@ -17,8 +17,6 @@
 import 'package:dio/dio.dart';
 import 'package:extended_text/extended_text.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/src/painting/inline_span.dart';
-import 'package:flutter/src/painting/text_style.dart';
 import 'package:pixez/component/pixiv_image.dart';
 import 'package:pixez/er/lprinter.dart';
 import 'package:pixez/models/illust.dart';
@@ -75,7 +73,6 @@ class SpecialImageText extends SpecialText {
     if (now.contains('-')) {
       trueId = int.tryParse(now.split('-').first)!;
     }
-    if (int == null) return TextSpan(text: key, style: textStyle);
     return PixivImageSpan(trueId, key);
   }
 }
@@ -176,7 +173,7 @@ class NovelSpecialTextSpanBuilder extends SpecialTextSpanBuilder {
       {TextStyle? textStyle,
       SpecialTextGestureTapCallback? onTap,
       int? index}) {
-    if (flag == null || flag == '') {
+    if (flag.isEmpty) {
       return null;
     }
     if (isStart(flag, NextPageText.flag)) {
