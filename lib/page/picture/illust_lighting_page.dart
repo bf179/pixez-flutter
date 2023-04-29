@@ -18,6 +18,7 @@ import 'dart:io';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:easy_refresh/easy_refresh.dart';
+import 'package:extended_text/extended_text.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -124,6 +125,7 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
 
   @override
   void initState() {
+    _focusNode = FocusNode();
     _refreshController = EasyRefreshController(
         controlFinishLoad: true, controlFinishRefresh: true);
     _scrollController = ScrollController();
@@ -158,6 +160,7 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
     _illustStore.dispose();
     _scrollController.dispose();
     _refreshController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -205,10 +208,33 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
     );
   }
 
+  late FocusNode _focusNode;
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return _buildBody(context);
+    return ExtendedTextSelectionPointerHandler(
+      builder: (states) {
+        return Listener(
+          child: _buildBody(context),
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (value) {
+            for (var state in states) {
+              if (!state.containsPosition(value.position)) {
+                state.clearSelection();
+              }
+            }
+            if (_focusNode.hasFocus) _focusNode.unfocus();
+          },
+          onPointerMove: (value) {
+            for (var state in states) {
+              state.clearSelection();
+            }
+            if (_focusNode.hasFocus) _focusNode.unfocus();
+          },
+        );
+      },
+    );
   }
 
   Widget _buildBody(BuildContext context) {
@@ -293,12 +319,10 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
   }
 
   Widget colorText(String text, BuildContext context) {
-    return SelectionArea(
-      selectionControls: TextSelectionFix.buildControls(context),
-      child: Text(
-        text,
-        style: TextStyle(color: Theme.of(context).colorScheme.secondary),
-      ),
+    return ExtendedText(
+      text,
+      style: TextStyle(color: Theme.of(context).colorScheme.secondary),
+      selectionEnabled: true,
     );
   }
 
@@ -337,8 +361,7 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: <Widget>[
-                      SelectionContainer.disabled(
-                          child: Text(I18n.of(context).illust_id)),
+                      Container(child: Text(I18n.of(context).illust_id)),
                       Container(
                         width: 10.0,
                       ),
@@ -346,8 +369,7 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
                       Container(
                         width: 20.0,
                       ),
-                      SelectionContainer.disabled(
-                          child: Text(I18n.of(context).pixel)),
+                      Container(child: Text(I18n.of(context).pixel)),
                       Container(
                         width: 10.0,
                       ),
@@ -401,6 +423,7 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
                 padding: const EdgeInsets.all(8.0),
                 child: SelectionArea(
                   selectionControls: TextSelectionFix.buildControls(context),
+                  focusNode: _focusNode,
                   child: SelectableHtml(
                     data: data.caption.isEmpty ? "~" : data.caption,
                   ),
@@ -583,7 +606,8 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(':(', style: Theme.of(context).textTheme.headlineMedium),
+            child:
+                Text(':(', style: Theme.of(context).textTheme.headlineMedium),
           ),
           Text(
             '${_illustStore.errorMessage}',
@@ -630,7 +654,8 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
         placeWidget: Container(
           height: height,
           child: Center(
-            child: Text('$index', style: Theme.of(context).textTheme.headlineMedium),
+            child: Text('$index',
+                style: Theme.of(context).textTheme.headlineMedium),
           ),
         ),
       );
@@ -821,11 +846,11 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: <Widget>[
-                  SelectionArea(
-                    selectionControls: TextSelectionFix.buildControls(context),
-                    child: Text(
+                  Container(
+                    child: ExtendedText(
                       illust.title,
                       style: Theme.of(context).textTheme.bodyMedium,
+                      selectionEnabled: true,
                     ),
                   ),
                   Container(
@@ -833,13 +858,13 @@ class _IllustVerticalPageState extends State<IllustVerticalPage>
                   ),
                   Hero(
                     tag: illust.user.name + this.hashCode.toString(),
-                    child: SelectionArea(
-                      selectionControls:
-                          TextSelectionFix.buildControls(context),
-                      child: Text(
+                    child: Container(
+                      child: ExtendedText(
                         illust.user.name,
                         style: TextStyle(
-                            color: Theme.of(context).textTheme.bodySmall!.color),
+                            color:
+                                Theme.of(context).textTheme.bodySmall!.color),
+                        selectionEnabled: true,
                       ),
                     ),
                   ),
