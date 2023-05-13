@@ -17,12 +17,19 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:bot_toast/bot_toast.dart';
+import 'package:dynamic_color/dynamic_color.dart';
+import 'package:fluent_ui/fluent_ui.dart' as fluentui;
+import 'package:flutter/material.dart' as material;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:pixez/constants.dart';
 import 'package:pixez/er/fetcher.dart';
 import 'package:pixez/er/hoster.dart';
+import 'package:pixez/fluentui.dart';
 import 'package:pixez/network/onezero_client.dart';
 import 'package:pixez/page/history/history_store.dart';
 import 'package:pixez/page/novel/history/novel_history_store.dart';
@@ -35,7 +42,8 @@ import 'package:pixez/store/save_store.dart';
 import 'package:pixez/store/tag_history_store.dart';
 import 'package:pixez/store/top_store.dart';
 import 'package:pixez/store/user_setting.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:pixez/windows.dart' as windows;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 final RouteObserver<ModalRoute<void>> routeObserver =
     RouteObserver<ModalRoute<void>>();
@@ -61,13 +69,23 @@ class MyHttpOverrides extends HttpOverrides {
   }
 }
 
-main() async {
-  // HttpOverrides.global = new MyHttpOverrides();
+main(List<String> args) async {
+  if (Platform.isWindows || Platform.isLinux) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    await initFluent(args);
+  }
+
   runApp(ProviderScope(
     child: MyApp(),
   ));
 }
+
+const _brandBlue = Color(0xFF1E88E5);
 
 class MyApp extends StatefulWidget {
   @override
@@ -76,6 +94,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   AppLifecycleState? _appState;
+  late fluentui.AccentColor _accentColor;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -130,6 +149,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     fetcher.start();
     super.initState();
     if (Platform.isIOS) WidgetsBinding.instance.addObserver(this);
+    if (Constants.isFluent) {
+      _accentColor = Color(windows.getAccentColor()).toAccentColor();
+    }
   }
 
   initMethod() async {
@@ -147,6 +169,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    return Constants.isFluent
+        ? _buildFluentUI(context)
+        : _buildMaterial(context);
+  }
+
+  Widget _buildMaterial(BuildContext context) {
     return Observer(builder: (_) {
       final botToastBuilder = BotToastInit();
       final myBuilder = (BuildContext context, Widget? widget) {
@@ -162,9 +190,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 duration: const Duration(milliseconds: 500),
                 child: needShowMask
                     ? Container(
-                        color: Theme.of(context).canvasColor,
+                        color: material.Theme.of(context).canvasColor,
                         child: Center(
-                          child: Icon(Icons.privacy_tip_outlined),
+                          child: Icon(material.Icons.privacy_tip_outlined),
                         ),
                       )
                     : null,
@@ -175,55 +203,129 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           return widget;
         }
       };
-      return MaterialApp(
-        navigatorObservers: [BotToastNavigatorObserver(), routeObserver],
-        locale: userSetting.locale,
+      return DynamicColorBuilder(
+          builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        ColorScheme lightColorScheme;
+        ColorScheme darkColorScheme;
+
+        if (lightDynamic != null && darkDynamic != null) {
+          lightColorScheme = lightDynamic.harmonized();
+          darkColorScheme = darkDynamic.harmonized();
+        } else {
+          lightColorScheme = ColorScheme.fromSeed(
+            seedColor: _brandBlue,
+          );
+          darkColorScheme = ColorScheme.fromSeed(
+            seedColor: _brandBlue,
+            brightness: Brightness.dark,
+          );
+        }
+        return material.MaterialApp(
+          navigatorObservers: [BotToastNavigatorObserver(), routeObserver],
+          locale: userSetting.locale,
+          home: Builder(builder: (context) {
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+                value: SystemUiOverlayStyle(
+                  systemNavigationBarColor: material.Colors.transparent,
+                  systemNavigationBarDividerColor: material.Colors.transparent,
+                  statusBarColor: material.Colors.transparent,
+                ),
+                child: SplashPage());
+          }),
+          title: 'PixEz',
+          builder: (context, child) {
+            if (Platform.isIOS) child = myBuilder(context, child);
+            child = botToastBuilder(context, child);
+            return child;
+          },
+          themeMode: userSetting.themeMode,
+          theme: material.ThemeData.light()
+              .copyWith(useMaterial3: true, colorScheme: lightColorScheme),
+          darkTheme: material.ThemeData.dark().copyWith(
+              useMaterial3: true,
+              scaffoldBackgroundColor:
+                  userSetting.isAMOLED ? material.Colors.black : null,
+              colorScheme: darkColorScheme),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales, // Add this line
+        );
+      });
+    });
+  }
+
+  Widget _buildFluentUI(BuildContext context) {
+    return Observer(builder: (context) {
+      final botToastBuilder = BotToastInit();
+      return fluentui.FluentApp(
         home: Builder(builder: (context) {
           return AnnotatedRegion<SystemUiOverlayStyle>(
-              value: SystemUiOverlayStyle(
-                systemNavigationBarColor: Colors.transparent,
-                systemNavigationBarDividerColor: Colors.transparent,
-                statusBarColor: Colors.transparent,
-              ),
-              child: SplashPage());
+            value: SystemUiOverlayStyle(
+                statusBarColor: fluentui.Colors.transparent),
+            child: SplashPage(),
+          );
         }),
-        title: 'PixEz',
         builder: (context, child) {
-          if (Platform.isIOS) child = myBuilder(context, child);
           child = botToastBuilder(context, child);
-          return child;
+          return Directionality(
+            textDirection: TextDirection.ltr,
+            child: fluentui.NavigationPaneTheme(
+              data: fluentui.NavigationPaneThemeData(
+                backgroundColor: fluentui.Colors.transparent,
+              ),
+              child: child,
+            ),
+          );
         },
+        title: 'PixEz',
+        locale: userSetting.locale,
+        navigatorObservers: [
+          BotToastNavigatorObserver(),
+          routeObserver,
+        ],
         themeMode: userSetting.themeMode,
-        theme: ThemeData.light().copyWith(
-            pageTransitionsTheme: PageTransitionsTheme(builders: {
-              TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
-              TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-              TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-            }),
-            primaryColor: userSetting.themeData.colorScheme.primary,
-            primaryColorLight: userSetting.themeData.colorScheme.primary,
-            primaryColorDark: userSetting.themeData.colorScheme.primary,
-            colorScheme: ThemeData.light().colorScheme.copyWith(
-                  secondary: userSetting.themeData.colorScheme.secondary,
-                  primary: userSetting.themeData.colorScheme.primary,
-                )),
-        darkTheme: ThemeData.dark().copyWith(
-          pageTransitionsTheme: PageTransitionsTheme(builders: {
-            TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
-            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-            TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-          }),
-          scaffoldBackgroundColor: userSetting.isAMOLED ? Colors.black : null,
-          primaryColor: userSetting.themeData.colorScheme.primary,
-          primaryColorLight: userSetting.themeData.colorScheme.primary,
-          primaryColorDark: userSetting.themeData.colorScheme.primary,
-          colorScheme: ThemeData.dark().colorScheme.copyWith(
-              secondary: userSetting.themeData.colorScheme.secondary,
-              primary: userSetting.themeData.colorScheme.primary),
+        darkTheme: fluentui.FluentThemeData(
+          brightness: Brightness.dark,
+          visualDensity: fluentui.VisualDensity.standard,
+          accentColor: _accentColor,
+          focusTheme: fluentui.FocusThemeData(
+            glowFactor: fluentui.is10footScreen(context) ? 2.0 : 0.0,
+          ),
         ),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        theme: fluentui.FluentThemeData(
+          brightness: Brightness.light,
+          visualDensity: fluentui.VisualDensity.standard,
+          accentColor: _accentColor,
+          focusTheme: fluentui.FocusThemeData(
+            glowFactor: fluentui.is10footScreen(context) ? 2.0 : 0.0,
+          ),
+        ),
+        localizationsDelegates: [
+          _FluentLocalizationsDelegate(),
+          ...AppLocalizations.localizationsDelegates
+        ],
         supportedLocales: AppLocalizations.supportedLocales, // Add this line
       );
     });
+  }
+}
+
+class _FluentLocalizationsDelegate
+    extends LocalizationsDelegate<fluentui.FluentLocalizations> {
+  const _FluentLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) {
+    return AppLocalizations.supportedLocales.contains(locale);
+  }
+
+  @override
+  Future<fluentui.FluentLocalizations> load(Locale locale) {
+    return fluentui.FluentLocalizations.delegate.load(locale);
+  }
+
+  @override
+  bool shouldReload(
+      covariant LocalizationsDelegate<fluentui.FluentLocalizations> old) {
+    return false;
   }
 }
