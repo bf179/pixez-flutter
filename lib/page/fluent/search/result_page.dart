@@ -15,7 +15,6 @@
  */
 
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:pixez/component/md2_tab_indicator.dart';
 import 'package:pixez/i18n.dart';
 import 'package:pixez/main.dart';
 import 'package:pixez/models/tags.dart';
@@ -47,6 +46,9 @@ class _ResultPageState extends State<ResultPage> {
   Widget build(BuildContext context) {
     return NavigationView(
       pane: NavigationPane(
+        displayMode: PaneDisplayMode.top,
+        selected: index,
+        onChanged: (value) => setState(() => index = value),
         items: [
           PaneItem(
             icon: Icon(FluentIcons.picture),

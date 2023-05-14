@@ -4,10 +4,7 @@ class SortGroup extends StatefulWidget {
   final List<String> children;
   final Function onChange;
 
-  const SortGroup(
-      {Key? key,
-      required this.children,
-      required this.onChange})
+  const SortGroup({Key? key, required this.children, required this.onChange})
       : super(key: key);
 
   @override
@@ -22,25 +19,25 @@ class _SortGroupState extends State<SortGroup> {
     super.initState();
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Wrap(
       spacing: 8,
       children: [
         for (var i in widget.children)
-          ActionChip(
-            elevation: 4.0,
-            label: Text(
+          ElevatedButton(
+            child: Text(
               i,
               style: TextStyle(
                   color: index == widget.children.indexOf(i)
                       ? Colors.white
                       : Theme.of(context).textTheme.bodyLarge!.color),
             ),
-            backgroundColor: index == widget.children.indexOf(i)
-                ? Theme.of(context).colorScheme.primary
-                : Colors.transparent,
+            style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.all<Color>(
+                    index == widget.children.indexOf(i)
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).cardColor)),
             onPressed: () {
               int ii = widget.children.indexOf(i);
               widget.onChange(ii);
