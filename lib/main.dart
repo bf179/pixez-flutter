@@ -18,6 +18,7 @@ import 'dart:io';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:flex_seed_scheme/flex_seed_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -190,8 +191,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           },
           themeMode: userSetting.themeMode,
           theme: ThemeData.light().copyWith(
-              colorScheme: lightColorScheme,
-              scaffoldBackgroundColor: lightColorScheme.surface),
+            primaryColor: lightColorScheme.primary,
+            colorScheme: lightColorScheme,
+            scaffoldBackgroundColor: lightColorScheme.surface,
+            cardColor: lightColorScheme.surfaceContainer,
+            chipTheme: ChipThemeData(
+              backgroundColor: lightColorScheme.surface,
+            ),
+          ),
           darkTheme: ThemeData.dark().copyWith(
               scaffoldBackgroundColor:
                   userSetting.isAMOLED ? Colors.black : null,
