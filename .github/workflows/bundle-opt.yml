@@ -36,7 +36,7 @@ jobs:
         java-version: ${{ github.event.inputs.java_version || '17' }}
 
     - name: Setup Flutter
-      uses: subosito/flutter-action@v1
+      uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
 
@@ -81,13 +81,13 @@ jobs:
         export OUTPUT="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
         curl https://api.telegram.org/bot${BOT_TOKEN}/sendDocument -X POST -F chat_id="$CHAT_ID" -F caption="[arm64-v8a with split-debug-info] $GITHUB_SHA" -F document="@$OUTPUT" > /dev/null
 
-    - uses: actions/upload-artifact@master
+    - uses: actions/upload-artifact@v4
       name: Upload Output Folder
       with:
         name: PixEz-flutter
         path: build/app/outputs
 
-    - uses: actions/upload-artifact@master
+    - uses: actions/upload-artifact@v4
       name: Upload Variants
       with:
         name: app-release
