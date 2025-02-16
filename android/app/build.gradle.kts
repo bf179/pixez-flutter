@@ -101,7 +101,7 @@ android {
             val alias: String?
             val pwd: String?
             if (rootProject.file("local.properties").exists()) {
-                val properties = java.util.Properties().apply {
+                val properties = Properties().apply {
                     rootProject.file("local.properties").inputStream().use { load(it) }
                 }
                 keystorePwd = properties.getProperty("RELEASE_STORE_PASSWORD")
