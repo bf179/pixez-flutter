@@ -13,43 +13,28 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  *
  */
+pluginManagement {
+    val flutterSdkPath = run {
+        val properties = java.util.Properties()
+        file("local.properties").inputStream().use { properties.load(it) }
+        val flutterSdkPath = properties.getProperty("flutter.sdk")
+        require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
+        flutterSdkPath
+    }
 
-buildscript {
-    ext.kotlin_version = '2.0.20'
+    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
         google()
         mavenCentral()
-        maven { url "https://jitpack.io" }
-    }
-
-    dependencies {
-        classpath 'com.android.tools.build:gradle:7.2.2'
-        classpath 'com.google.gms:google-services:4.3.10'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
-
-}
-
-allprojects {
-    repositories {
-        // maven { url 'https://maven.aliyun.com/repository/public/' }
-        google()
-        mavenCentral()
-        jcenter()
-        maven { url "https://jitpack.io" }
-        mavenCentral()
+        gradlePluginPortal()
     }
 }
 
-rootProject.buildDir = '../build'
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
-    project.evaluationDependsOn(':app')
+plugins {
+    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
+    id("com.android.application") version "8.7.0" apply false
+    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
 }
 
-tasks.register("clean", Delete) {
-    delete rootProject.buildDir
-}
+include(":app")
