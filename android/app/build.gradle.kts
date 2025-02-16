@@ -97,10 +97,26 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-            storePassword = keystoreProperties["storePassword"] as String
+            val keystorePwd: String?
+            val alias: String?
+            val pwd: String?
+            if (rootProject.file("local.properties").exists()) {
+                val properties = java.util.Properties().apply {
+                    rootProject.file("local.properties").inputStream().use { load(it) }
+                }
+                keystorePwd = properties.getProperty("RELEASE_STORE_PASSWORD")
+                alias = properties.getProperty("RELEASE_KEY_ALIAS")
+                pwd = properties.getProperty("RELEASE_KEY_PASSWORD")
+            } else {
+                keystorePwd = null
+                alias = null
+                pwd = null
+            }
+
+            storeFile = rootProject.file("config/release.keystore")
+            storePassword = keystorePwd ?: System.getenv("KEYSTORE_PASS")
+            keyAlias = alias ?: System.getenv("ALIAS_NAME")
+            keyPassword = pwd ?: System.getenv("ALIAS_PASS")
         }
     }
 
