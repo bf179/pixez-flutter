@@ -113,7 +113,7 @@ android {
                 pwd = null
             }
 
-            storeFile = rootProject.file("config/release.keystore")
+            storeFile = rootProject.file("app/config/release.keystore")
             storePassword = keystorePwd ?: System.getenv("KEYSTORE_PASS")
             keyAlias = alias ?: System.getenv("ALIAS_NAME")
             keyPassword = pwd ?: System.getenv("ALIAS_PASS")
