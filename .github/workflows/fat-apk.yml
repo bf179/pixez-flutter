@@ -1,10 +1,6 @@
 name: Build Fat APK
 
 on:	
-  push:
-    paths-ignore:
-      - '.github/workflows/**'
-    branches: [ master ]
   workflow_dispatch:
     inputs:
       java_version:
