@@ -58,7 +58,7 @@ if (keystorePropertiesFile.exists()) {
 val packageName = if (dartEnvironmentVariables["IS_GOOGLEPLAY"] as Boolean) {
     "com.perol.play.pixez"
 } else {
-    "com.perol.pixez"
+    "com.perol.pixev"
 }
 
 android {
