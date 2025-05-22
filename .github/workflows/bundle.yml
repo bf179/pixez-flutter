@@ -62,7 +62,7 @@ jobs:
     - name: Flutter Build ABI
       continue-on-error: true
       run: |
-        flutter build apk --split-per-abi --dart-define=IS_GOOGLEPLAY=false
+        flutter build apk --release --target-platform=android-arm64 --dart-define=IS_GOOGLEPLAY=false
 
     - uses: actions/upload-artifact@v4
       name: Upload Variants
