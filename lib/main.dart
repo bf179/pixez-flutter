@@ -35,6 +35,7 @@ import 'package:pixez/single_instance_plugin.dart';
 import 'package:pixez/src/generated/i18n/app_localizations.dart';
 import 'package:pixez/store/account_store.dart';
 import 'package:pixez/store/book_tag_store.dart';
+import 'package:pixez/store/discovery_store.dart';
 import 'package:pixez/store/fullscreen_store.dart';
 import 'package:pixez/store/mute_store.dart';
 import 'package:pixez/store/save_store.dart';
@@ -49,6 +50,7 @@ final RouteObserver<ModalRoute<void>> routeObserver =
 final UserSetting userSetting = UserSetting();
 final SaveStore saveStore = SaveStore();
 final MuteStore muteStore = MuteStore();
+final DiscoveryStore discoveryStore = DiscoveryStore();
 final AccountStore accountStore = AccountStore();
 final TagHistoryStore tagHistoryStore = TagHistoryStore();
 final NovelHistoryStore novelHistoryStore = NovelHistoryStore();

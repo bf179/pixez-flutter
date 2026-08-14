@@ -26,9 +26,9 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          # 固定 3.27.x：pubspec.lock 基于该版本解析
-          # （material_color_utilities 0.11.1，与 dynamic_color git 约束兼容）
-          flutter-version: '3.27.4'
+          # 固定 3.32.x：material_color_utilities 0.11.1（dynamic_color git 约束
+          # ≤0.11.1）且含 stylusHandwritingEnabled（fluent_ui 4.11.3 需要）
+          flutter-version: '3.32.3'
           cache: true
 
       - name: Pub Get
