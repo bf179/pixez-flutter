@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:pixez/component/painter_avatar.dart';
 import 'package:pixez/component/pixiv_image.dart';
+import 'package:pixez/main.dart';
 import 'package:pixez/models/user_preview.dart';
 import 'package:pixez/network/api_client.dart';
 import 'package:pixez/page/novel/user/novel_users_page.dart';
@@ -172,6 +173,7 @@ class _PainterCardState extends State<PainterCard> {
                 try {
                   if (_user.user.isFollowed!) {
                     await apiClient.postUnFollowUser(_user.user.id);
+                    discoveryStore.onUnfollow(_user.user.id);
                     if (mounted) {
                       setState(() {
                         _user.user.isFollowed = false;
@@ -179,6 +181,7 @@ class _PainterCardState extends State<PainterCard> {
                     }
                   } else {
                     await apiClient.postFollowUser(_user.user.id, 'public');
+                    discoveryStore.onFollow(_user.user.id, _user.user.name);
                     if (mounted) {
                       setState(() {
                         _user.user.isFollowed = true;
@@ -191,8 +194,10 @@ class _PainterCardState extends State<PainterCard> {
                 try {
                   if (follow) {
                     await apiClient.postFollowUser(_user.user.id, restrict);
+                    discoveryStore.onFollow(_user.user.id, _user.user.name);
                   } else {
                     await apiClient.postUnFollowUser(_user.user.id);
+                    discoveryStore.onUnfollow(_user.user.id);
                   }
                   if (mounted) {
                     setState(() {

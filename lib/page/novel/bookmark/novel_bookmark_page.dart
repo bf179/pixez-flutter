@@ -58,6 +58,7 @@ class _NovelBookmarkPageState extends State<NovelBookmarkPage> {
             Expanded(
               child: NovelLightingList(
                 futureGet: futureGet,
+                disableDiscoveryFilter: true,
               ),
             )
           ],
@@ -65,6 +66,7 @@ class _NovelBookmarkPageState extends State<NovelBookmarkPage> {
       else {
         return NovelLightingList(
           futureGet: futureGet,
+          disableDiscoveryFilter: true,
         );
       }
     });

@@ -125,6 +125,19 @@ extension NovelExts on Novel {
       }
     return false;
   }
+
+  /// 发现过滤：隐藏已关注画师（含隐藏列表）的作品、隐藏已收藏的作品
+  bool hideByDiscovery() {
+    final s = discoveryStore;
+    if (s.hideFollowedArtists) {
+      final uid = user.id.toString();
+      if (s.followedUids.contains(uid) || s.hiddenUids.contains(uid)) {
+        return true;
+      }
+    }
+    if (s.hideFavoritedWorks && isBookmarked) return true;
+    return false;
+  }
 }
 
 extension IllustExts on Illusts {
@@ -174,6 +187,19 @@ extension IllustExts on Illusts {
         true) {
       if (sanityLevel > 4) return true;
     }
+    return false;
+  }
+
+  /// 发现过滤：隐藏已关注画师（含隐藏列表）的作品、隐藏已收藏的作品
+  bool hideByDiscovery() {
+    final s = discoveryStore;
+    if (s.hideFollowedArtists) {
+      final uid = user.id.toString();
+      if (s.followedUids.contains(uid) || s.hiddenUids.contains(uid)) {
+        return true;
+      }
+    }
+    if (s.hideFavoritedWorks && isBookmarked) return true;
     return false;
   }
 }

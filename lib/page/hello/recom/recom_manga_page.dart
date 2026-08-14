@@ -44,6 +44,8 @@ class _RecomMangaPageState extends State<RecomMangaPage> {
       extendBody: true,
       extendBodyBehindAppBar: true,
       body: Observer(builder: (_) {
+        _store.iStores
+            .removeWhere((element) => element.illusts!.hideByDiscovery());
         return EasyRefresh(
           controller: controller,
           onLoad: () {

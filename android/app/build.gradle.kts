@@ -122,7 +122,11 @@ android {
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            // 未提供签名密钥（KEYSTORE_PASS 环境变量）时产出未签名 APK，
+            // 便于 CI 自动构建发布无签名产物。
+            if (System.getenv("KEYSTORE_PASS") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }

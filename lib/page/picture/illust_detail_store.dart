@@ -15,6 +15,7 @@
  */
 
 import 'package:mobx/mobx.dart';
+import 'package:pixez/main.dart';
 import 'package:pixez/models/illust.dart';
 import 'package:pixez/network/api_client.dart';
 
@@ -36,10 +37,12 @@ abstract class _IllustDetailStoreBase with Store {
     try {
       if (illust.user.isFollowed ?? false) {
         await apiClient.postUnFollowUser(illust.user.id);
+        discoveryStore.onUnfollow(illust.user.id);
         illust.user.isFollowed = false;
         isFollow = false;
       } else {
         await apiClient.postFollowUser(illust.user.id, 'public');
+        discoveryStore.onFollow(illust.user.id, illust.user.name);
         illust.user.isFollowed = true;
         isFollow = true;
       }

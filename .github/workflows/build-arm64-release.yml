@@ -1,0 +1,56 @@
+name: Build arm64 Release APK
+
+on:
+  push:
+    branches: [master, main]
+    paths-ignore:
+      - '**.md'
+      - '.github/board/**'
+      - 'assets/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Pub Get
+        run: flutter pub get
+
+      - name: Codegen (build_runner)
+        run: flutter packages pub run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        continue-on-error: true
+        run: flutter analyze
+
+      - name: Test
+        continue-on-error: true
+        run: flutter test
+
+      - name: Build arm64v8a Release APK (unsigned)
+        run: flutter build apk --release --target-platform android-arm64 --dart-define=IS_GOOGLEPLAY=false
+
+      - name: Upload APK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixez-arm64-release-unsigned
+          if-no-files-found: error
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/apk/release/*.apk

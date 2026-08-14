@@ -53,6 +53,9 @@ class LightingList extends StatefulWidget {
   final String? portal;
   final bool? ai;
 
+  /// 为 true 时不在该列表中应用发现过滤（收藏页等使用）
+  final bool? disableDiscoveryFilter;
+
   const LightingList(
       {Key? key,
       required this.source,
@@ -60,7 +63,8 @@ class LightingList extends StatefulWidget {
       this.isNested,
       this.scrollController,
       this.portal,
-      this.ai})
+      this.ai,
+      this.disableDiscoveryFilter})
       : super(key: key);
 
   @override
@@ -72,6 +76,10 @@ class _LightingListState extends State<LightingList> {
   late bool _isNested;
   late ScrollController _scrollController;
   late bool _ai;
+
+  /// 新作（portal=new，本身就是关注画师流）与收藏页不应用发现过滤
+  bool get _shouldApplyDiscoveryFilter =>
+      widget.portal != 'new' && !(widget.disableDiscoveryFilter ?? false);
 
   @override
   void didUpdateWidget(LightingList oldWidget) {
@@ -135,6 +143,10 @@ class _LightingListState extends State<LightingList> {
   Widget _buildWithoutHeader(context) {
     _store.iStores
         .removeWhere((element) => element.illusts!.hateByUser(ai: _ai));
+    if (_shouldApplyDiscoveryFilter) {
+      _store.iStores
+          .removeWhere((element) => element.illusts!.hideByDiscovery());
+    }
     return NotificationListener<ScrollNotification>(
         onNotification: (ScrollNotification notification) {
           if (widget.isNested == true) {
@@ -278,6 +290,10 @@ class _LightingListState extends State<LightingList> {
       BuildContext context) {
     _store.iStores
         .removeWhere((element) => element.illusts!.hateByUser(ai: _ai));
+    if (_shouldApplyDiscoveryFilter) {
+      _store.iStores
+          .removeWhere((element) => element.illusts!.hideByDiscovery());
+    }
     return SliverChildBuilderDelegate((BuildContext context, int index) {
       return IllustCard(
         lightingStore: _store,

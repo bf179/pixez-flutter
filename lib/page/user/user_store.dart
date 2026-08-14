@@ -18,6 +18,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:mobx/mobx.dart';
+import 'package:pixez/main.dart';
 import 'package:pixez/models/illust.dart';
 import 'package:pixez/models/user_detail.dart';
 import 'package:pixez/network/api_client.dart';
@@ -50,11 +51,13 @@ abstract class _UserStoreBase with Store {
         userDetail?.user.isFollowed = false;
         user?.isFollowed = false;
         isFollow = false;
+        discoveryStore.onUnfollow(id);
       } else {
         await client.postUserFollowAdd(id, restrict);
         userDetail?.user.isFollowed = true;
         user?.isFollowed = true;
         isFollow = true;
+        discoveryStore.onFollow(id, user?.name ?? '');
       }
     } on DioException catch (e) {
       if (e.response != null &&
@@ -70,6 +73,7 @@ abstract class _UserStoreBase with Store {
         userDetail?.user.isFollowed = false;
         user?.isFollowed = false;
         isFollow = false;
+        discoveryStore.onUnfollow(id);
       } on DioException catch (e) {
         if (e.response != null &&
             e.response!.statusCode == HttpStatus.badRequest) {}
@@ -82,6 +86,7 @@ abstract class _UserStoreBase with Store {
         userDetail?.user.isFollowed = true;
         user?.isFollowed = true;
         isFollow = true;
+        discoveryStore.onFollow(id, user?.name ?? '');
       } on DioException catch (e) {
         if (e.response != null &&
             e.response!.statusCode == HttpStatus.badRequest) {}
@@ -92,6 +97,7 @@ abstract class _UserStoreBase with Store {
         userDetail?.user.isFollowed = true;
         user?.isFollowed = true;
         isFollow = true;
+        discoveryStore.onFollow(id, user?.name ?? '');
       } on DioException catch (e) {
         if (e.response != null &&
             e.response!.statusCode == HttpStatus.badRequest) {}

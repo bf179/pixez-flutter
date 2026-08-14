@@ -58,7 +58,8 @@ abstract class _IllustAboutStoreBase with Store {
         refreshController?.finishLoad(IndicatorResult.noMore);
         return true;
       }
-      illusts.addAll(resultIllusts.takeWhile((value) => !value.hateByUser()));
+      illusts.addAll(resultIllusts
+          .takeWhile((value) => !value.hateByUser() && !value.hideByDiscovery()));
       if (_nextUrl == null || _nextUrl!.isEmpty || recommend.illusts.isEmpty) {
         refreshController?.finishLoad(IndicatorResult.noMore);
       } else {

@@ -129,8 +129,8 @@ class _RecomSpolightPageState extends State<RecomSpolightPage>
   }
 
   Widget _buildWaterFall(BuildContext context, ScrollPhysics physics) {
-    _lightingStore.iStores
-        .removeWhere((element) => element.illusts!.hateByUser());
+    _lightingStore.iStores.removeWhere((element) =>
+        element.illusts!.hateByUser() || element.illusts!.hideByDiscovery());
     return NotificationListener<ScrollNotification>(
       onNotification: (ScrollNotification notification) {
         ScrollMetrics metrics = notification.metrics;

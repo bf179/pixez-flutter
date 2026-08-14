@@ -31,7 +31,14 @@ class NovelLightingList extends StatefulWidget {
   final FutureGet futureGet;
   final bool? isNested;
 
-  const NovelLightingList({Key? key, required this.futureGet, this.isNested})
+  /// 为 true 时不在该列表中应用发现过滤（小说收藏页使用）
+  final bool? disableDiscoveryFilter;
+
+  const NovelLightingList(
+      {Key? key,
+      required this.futureGet,
+      this.isNested,
+      this.disableDiscoveryFilter})
       : super(key: key);
 
   @override
@@ -98,7 +105,10 @@ class _NovelLightingListState extends State<NovelLightingList> {
   }
 
   ListView _buildListBody() {
-    _store.novels.removeWhere((element) => element.novel?.hateByUser() == true);
+    _store.novels.removeWhere((element) =>
+        element.novel?.hateByUser() == true ||
+        (!(widget.disableDiscoveryFilter ?? false) &&
+            element.novel?.hideByDiscovery() == true));
     return ListView.builder(
       padding: EdgeInsets.all(0),
       itemBuilder: (context, index) {

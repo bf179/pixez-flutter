@@ -18,6 +18,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:mobx/mobx.dart';
+import 'package:pixez/main.dart';
 import 'package:pixez/models/error_message.dart';
 import 'package:pixez/models/illust.dart';
 import 'package:pixez/models/illust_series_detail.dart';
@@ -113,6 +114,7 @@ abstract class _IllustStoreBase with Store {
     try {
       if (!illusts!.user.isFollowed!) {
         await apiClient.postFollowUser(illusts!.user.id, "public");
+        discoveryStore.onFollow(illusts!.user.id, illusts!.user.name);
         return illusts!.user.isFollowed = true;
       }
     } catch (e) {}

@@ -90,6 +90,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
               source: futureGet,
               scrollController: _scrollController,
               isNested: widget.isNested,
+              disableDiscoveryFilter: true,
               header: Container(
                 height: 45,
               ),
@@ -102,6 +103,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
         isNested: widget.isNested,
         scrollController: _scrollController,
         source: futureGet,
+        disableDiscoveryFilter: true,
       );
     } else {
       return Container();

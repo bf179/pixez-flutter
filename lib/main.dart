@@ -124,6 +124,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     accountStore.fetch();
     bookTagStore.init();
     muteStore.init();
+    discoveryStore.init();
 
     super.initState();
     if (Platform.isIOS) WidgetsBinding.instance.addObserver(this);
