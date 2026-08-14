@@ -300,7 +300,7 @@ class _SettingPageState extends State<SettingPage> {
                           title: const Text('隐藏画师列表管理'),
                           subtitle: const Text('导入 / 导出 / 搜索 / 编辑 / 清空（uid 自动去重）'),
                           onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => const HiddenArtistPage())),
+                              builder: (_) => HiddenArtistPage())),
                         ),
                         ListTile(
                           leading: const Icon(Icons.sync),
