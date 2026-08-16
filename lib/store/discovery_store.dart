@@ -52,7 +52,24 @@ class DiscoveryStore {
 
   bool _syncing = false;
 
+  /// 当前打开的详情页数量（嵌套详情页计数）。
+  /// 详情页打开期间，列表的发现过滤暂停执行，避免正在查看的作品被
+  /// 即时隐藏并导致详情页自动跳到下一张；退出详情页后过滤恢复生效。
+  /// 使用可观察集合存储，退出详情页（移除元素）会触发列表重新过滤。
+  final ObservableSet<int> _detailViewIds = ObservableSet();
+  int _detailViewSeq = 0;
+
   bool get syncing => _syncing;
+
+  bool get detailViewOpen => _detailViewIds.isNotEmpty;
+
+  void enterDetailView() => _detailViewIds.add(_detailViewSeq++);
+
+  void leaveDetailView() {
+    if (_detailViewIds.isNotEmpty) {
+      _detailViewIds.remove(_detailViewIds.last);
+    }
+  }
 
   bool get hideFollowedArtists => _flags[HIDE_FOLLOWED_KEY] ?? false;
 
@@ -128,6 +145,7 @@ class DiscoveryStore {
   }
 
   /// 全量同步关注列表（public + private），分页拉取，返回同步数量
+  /// 每页请求之间加入延迟限流，避免触发服务器 429
   Future<int> syncFollowed() async {
     if (_syncing) return 0;
     _syncing = true;
@@ -149,7 +167,11 @@ class DiscoveryStore {
             collected[u.user.id.toString()] = u.user.name;
           }
           nextUrl = data.next_url;
+          // 请求间隔，避免频率过高被服务器限流（429）
+          await Future.delayed(const Duration(milliseconds: 300));
         } while (nextUrl != null && nextUrl.isNotEmpty);
+        // 切换 restrict 时也稍作停顿
+        await Future.delayed(const Duration(milliseconds: 300));
       }
       if (collected.isEmpty) return 0;
       await followedProvider.open();

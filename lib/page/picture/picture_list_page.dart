@@ -54,11 +54,14 @@ class _PictureListPageState extends State<PictureListPage> {
     _lightingStore = widget.lightingStore;
     nowPosition = _iStores.indexOf(_store);
     _pageController = PageController(initialPage: nowPosition);
+    // 详情页打开期间暂停列表发现过滤，避免当前作品被即时隐藏并跳转到下一张
+    discoveryStore.enterDetailView();
     super.initState();
   }
 
   @override
   void dispose() {
+    discoveryStore.leaveDetailView();
     _pageController.dispose();
     super.dispose();
   }

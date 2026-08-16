@@ -5,6 +5,7 @@ import 'package:pixez/component/pixiv_image.dart';
 import 'package:pixez/er/leader.dart';
 import 'package:pixez/exts.dart';
 import 'package:pixez/lighting/lighting_store.dart';
+import 'package:pixez/main.dart';
 import 'package:pixez/network/api_client.dart';
 import 'package:pixez/page/picture/illust_lighting_page.dart';
 
@@ -45,8 +46,10 @@ class _RecomMangaPageState extends State<RecomMangaPage> {
       extendBody: true,
       extendBodyBehindAppBar: true,
       body: Observer(builder: (_) {
-        _store.iStores
-            .removeWhere((element) => element.illusts!.hideByDiscovery());
+        if (!discoveryStore.detailViewOpen) {
+          _store.iStores
+              .removeWhere((element) => element.illusts!.hideByDiscovery());
+        }
         return EasyRefresh(
           controller: controller,
           onLoad: () {

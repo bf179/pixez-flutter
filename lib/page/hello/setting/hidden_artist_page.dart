@@ -112,12 +112,15 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('添加隐藏画师'),
+        title: Text('批量添加隐藏画师'),
         content: TextField(
           controller: controller,
-          keyboardType: TextInputType.number,
+          maxLines: 6,
           autofocus: true,
-          decoration: InputDecoration(hintText: '输入画师 uid'),
+          decoration: InputDecoration(
+            hintText: '每行一个画师 uid\n支持一次粘贴多个',
+            border: OutlineInputBorder(),
+          ),
         ),
         actions: [
           TextButton(
@@ -125,17 +128,18 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
             child: Text('取消'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            onPressed: () => Navigator.pop(context, controller.text),
             child: Text('添加'),
           ),
         ],
       ),
     );
-    if (result != null && result.isNotEmpty && int.tryParse(result) != null) {
-      await discoveryStore.addHidden(result, result);
-      discoveryStore.enrichNames([result]);
-      BotToast.showText(text: '已添加 $result');
-    }
+    if (result == null || result.trim().isEmpty) return;
+    BotToast.showLoading();
+    final n = await discoveryStore.importHiddenFromText(result);
+    BotToast.closeAllLoading();
+    BotToast.showText(
+        text: n > 0 ? '已添加 $n 位画师（uid 已去重）' : '没有可添加的画师（uid 无效或已存在）');
   }
 
   Future<void> _edit(HiddenArtistPersist e) async {

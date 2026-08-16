@@ -77,9 +77,12 @@ class _LightingListState extends State<LightingList> {
   late ScrollController _scrollController;
   late bool _ai;
 
-  /// 新作（portal=new，本身就是关注画师流）与收藏页不应用发现过滤
+  /// 新作（portal=new，本身就是关注画师流）与收藏页不应用发现过滤；
+  /// 详情页打开期间也暂停过滤，避免正在查看的作品被即时隐藏
   bool get _shouldApplyDiscoveryFilter =>
-      widget.portal != 'new' && !(widget.disableDiscoveryFilter ?? false);
+      widget.portal != 'new' &&
+      !(widget.disableDiscoveryFilter ?? false) &&
+      !discoveryStore.detailViewOpen;
 
   @override
   void didUpdateWidget(LightingList oldWidget) {
