@@ -287,6 +287,7 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const BackButton(),
         title: const Text('隐藏画师列表'),
         actions: [
           PopupMenuButton<String>(

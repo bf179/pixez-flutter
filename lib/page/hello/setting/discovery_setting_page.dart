@@ -32,7 +32,10 @@ class _DiscoverySettingPageState extends State<DiscoverySettingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('发现过滤')),
+      appBar: AppBar(
+        leading: const BackButton(),
+        title: const Text('发现过滤'),
+      ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
@@ -67,21 +70,60 @@ class _DiscoverySettingPageState extends State<DiscoverySettingPage> {
           }),
           const Divider(),
           _buildSectionTitle('关注列表'),
+          // 同步关注列表：点击后后台执行，不占用操作焦点，状态实时刷新
           Observer(builder: (_) {
+            final syncing = discoveryStore.syncing;
+            final status = discoveryStore.syncStatus.value;
             return ListTile(
               leading: const Icon(Icons.sync),
               title: const Text('同步关注列表'),
-              subtitle: Text(discoveryStore.syncing
-                  ? '同步中…'
-                  : '当前缓存 ${discoveryStore.followedUids.length} 位关注画师\n后台每 6 小时自动同步一次'),
-              onTap: () async {
-                BotToast.showLoading();
-                final n = await discoveryStore.syncFollowed();
-                BotToast.closeAllLoading();
-                BotToast.showText(text: n > 0 ? '已同步 $n 位关注画师' : '同步完成');
-              },
+              subtitle: Text(
+                syncing
+                    ? status
+                    : '当前缓存 ${discoveryStore.followedUids.length} 位关注画师\n'
+                        '${status.isEmpty ? '' : '$status\n'}'
+                        '后台每 6 小时自动同步一次',
+                maxLines: 5,
+              ),
+              trailing: syncing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : null,
+              onTap: () => discoveryStore.syncFollowed(),
             );
           }),
+          ListTile(
+            leading: const Icon(Icons.delete_sweep_outlined),
+            title: const Text('清除关注缓存'),
+            subtitle: const Text('删除本账号缓存的关注画师记录（旧版本数据不兼容时使用，不影响其他账号）'),
+            onTap: () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('清除关注缓存'),
+                  content: const Text(
+                      '将删除当前账号缓存的全部关注画师记录（不影响其他账号），确定清除？'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('取消'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('清除'),
+                    ),
+                  ],
+                ),
+              );
+              if (ok == true) {
+                await discoveryStore.clearFollowedCache();
+                BotToast.showText(text: '已清除关注缓存');
+              }
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.storage_outlined),
             title: const Text('导出关注列表（sqlite）'),

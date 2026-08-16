@@ -79,6 +79,9 @@ class DiscoveryStore {
 
   Timer? _syncTimer;
 
+  /// 同步状态文本（可观察），设置页实时显示进度/结果
+  final ObservableValue<String> syncStatus = ObservableValue('');
+
   /// 当前打开的详情页数量（嵌套详情页计数）。
   /// 详情页打开期间，列表的发现过滤暂停执行，避免正在查看的作品被
   /// 即时隐藏并导致详情页自动跳到下一张；退出详情页后过滤恢复生效。
@@ -226,36 +229,52 @@ class DiscoveryStore {
   }
 
   /// 全量同步当前账号关注列表（public + private），分页拉取，返回同步数量。
-  /// 每页请求之间间隔 2000ms 限流，避免触发服务器 429。
+  /// 每页请求之间间隔 2000ms 限流，避免触发服务器 429；
+  /// 单个请求超时 60 秒，避免网络挂起导致界面一直停留在同步中。
   Future<int> syncFollowed() async {
     if (_syncing) return 0;
     _syncing = true;
+    syncStatus.value = '正在同步关注列表…';
     try {
-      if (accountStore.now == null) return 0;
+      if (accountStore.now == null) {
+        syncStatus.value = '尚未登录，无法同步关注列表';
+        return 0;
+      }
       final accountId = accountStore.now!.userId;
       final userId = int.parse(accountId);
       final collected = <String, String>{};
       for (final restrict in ['public', 'private']) {
+        syncStatus.value = restrict == 'public'
+            ? '正在同步公开关注…'
+            : '正在同步私密关注…';
         String? nextUrl = null;
         do {
           Response response;
           if (nextUrl == null || nextUrl!.isEmpty) {
-            response = await apiClient.getUserFollowing(userId, restrict);
+            response = await apiClient
+                .getUserFollowing(userId, restrict)
+                .timeout(const Duration(seconds: 60));
           } else {
-            response = await apiClient.getNext(nextUrl);
+            response = await apiClient
+                .getNext(nextUrl)
+                .timeout(const Duration(seconds: 60));
           }
           final data = UserPreviewsResponse.fromJson(response.data);
           for (final u in data.user_previews) {
             collected[u.user.id.toString()] = u.user.name;
           }
           nextUrl = data.next_url;
+          syncStatus.value = '已拉取 ${collected.length} 位关注画师，继续翻页…';
           // 请求间隔 2 秒，避免频率过高被服务器限流（429）
           await Future.delayed(const Duration(milliseconds: 2000));
         } while (nextUrl != null && nextUrl.isNotEmpty);
         // 切换 restrict 时也稍作停顿
         await Future.delayed(const Duration(milliseconds: 2000));
       }
-      if (collected.isEmpty) return 0;
+      if (collected.isEmpty) {
+        syncStatus.value = '同步完成：关注列表为空';
+        return 0;
+      }
       await followedProvider.open();
       // 先清空当前账号旧缓存（含迁移前的公共记录），避免残留已取关的画师
       await followedProvider.deleteByAccount(accountId);
@@ -265,12 +284,28 @@ class DiscoveryStore {
               userId: e.key, name: e.value, accountId: accountId))
           .toList());
       await loadFollowed();
+      syncStatus.value = '同步完成，共 ${collected.length} 位关注画师';
       return collected.length;
+    } on TimeoutException {
+      syncStatus.value = '同步超时，请检查网络后重试';
+      return 0;
     } catch (e) {
+      syncStatus.value = '同步失败，请检查网络或登录状态';
       return 0;
     } finally {
       _syncing = false;
     }
+  }
+
+  /// 清除当前账号的关注缓存（含迁移前的公共记录），不清除其他账号的数据。
+  /// 当旧版本数据异常或不兼容时可手动清理。
+  Future<void> clearFollowedCache() async {
+    await followedProvider.open();
+    final accountId = _currentAccountId;
+    await followedProvider.deleteByAccount(accountId);
+    await followedProvider.deleteByAccount(null);
+    await loadFollowed();
+    syncStatus.value = '已清除关注缓存';
   }
 
   // ---------- 隐藏画师列表（对所有账号生效） ----------
