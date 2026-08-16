@@ -22,6 +22,8 @@ import 'package:pixez/page/hello/setting/hidden_artist_page.dart';
 /// 发现过滤独立设置页（仅安卓）
 /// 集中管理：隐藏已关注 / 隐藏已收藏 / 隐藏公共关注库 / 关注同步 / 数据导出
 class DiscoverySettingPage extends StatefulWidget {
+  const DiscoverySettingPage();
+
   @override
   _DiscoverySettingPageState createState() => _DiscoverySettingPageState();
 }

@@ -27,6 +27,8 @@ import 'package:pixez/saf_plugin.dart';
 /// 支持：搜索（uid/画师名/备注）、新增（批量，每行一个 uid）、编辑、删除、
 /// txt/sqlite 导入导出、一键清空；列表展示头像、名称与作品预览
 class HiddenArtistPage extends StatefulWidget {
+  const HiddenArtistPage();
+
   @override
   _HiddenArtistPageState createState() => _HiddenArtistPageState();
 }
