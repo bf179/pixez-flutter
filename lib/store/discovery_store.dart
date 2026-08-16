@@ -80,7 +80,11 @@ class DiscoveryStore {
   Timer? _syncTimer;
 
   /// 同步状态文本（可观察），设置页实时显示进度/结果
-  final ObservableValue<String> syncStatus = ObservableValue('');
+  final ObservableMap<String, String> _syncStatus = ObservableMap();
+
+  String get syncStatus => _syncStatus['status'] ?? '';
+
+  void _setSyncStatus(String text) => _syncStatus['status'] = text;
 
   /// 当前打开的详情页数量（嵌套详情页计数）。
   /// 详情页打开期间，列表的发现过滤暂停执行，避免正在查看的作品被
@@ -234,19 +238,19 @@ class DiscoveryStore {
   Future<int> syncFollowed() async {
     if (_syncing) return 0;
     _syncing = true;
-    syncStatus.value = '正在同步关注列表…';
+    _setSyncStatus('正在同步关注列表…');
     try {
       if (accountStore.now == null) {
-        syncStatus.value = '尚未登录，无法同步关注列表';
+        _setSyncStatus('尚未登录，无法同步关注列表');
         return 0;
       }
       final accountId = accountStore.now!.userId;
       final userId = int.parse(accountId);
       final collected = <String, String>{};
       for (final restrict in ['public', 'private']) {
-        syncStatus.value = restrict == 'public'
+        _setSyncStatus(restrict == 'public'
             ? '正在同步公开关注…'
-            : '正在同步私密关注…';
+            : '正在同步私密关注…');
         String? nextUrl = null;
         do {
           Response response;
@@ -264,7 +268,7 @@ class DiscoveryStore {
             collected[u.user.id.toString()] = u.user.name;
           }
           nextUrl = data.next_url;
-          syncStatus.value = '已拉取 ${collected.length} 位关注画师，继续翻页…';
+          _setSyncStatus('已拉取 ${collected.length} 位关注画师，继续翻页…');
           // 请求间隔 2 秒，避免频率过高被服务器限流（429）
           await Future.delayed(const Duration(milliseconds: 2000));
         } while (nextUrl != null && nextUrl.isNotEmpty);
@@ -272,7 +276,7 @@ class DiscoveryStore {
         await Future.delayed(const Duration(milliseconds: 2000));
       }
       if (collected.isEmpty) {
-        syncStatus.value = '同步完成：关注列表为空';
+        _setSyncStatus('同步完成：关注列表为空');
         return 0;
       }
       await followedProvider.open();
@@ -284,13 +288,13 @@ class DiscoveryStore {
               userId: e.key, name: e.value, accountId: accountId))
           .toList());
       await loadFollowed();
-      syncStatus.value = '同步完成，共 ${collected.length} 位关注画师';
+      _setSyncStatus('同步完成，共 ${collected.length} 位关注画师');
       return collected.length;
     } on TimeoutException {
-      syncStatus.value = '同步超时，请检查网络后重试';
+      _setSyncStatus('同步超时，请检查网络后重试');
       return 0;
     } catch (e) {
-      syncStatus.value = '同步失败，请检查网络或登录状态';
+      _setSyncStatus('同步失败，请检查网络或登录状态');
       return 0;
     } finally {
       _syncing = false;
@@ -305,7 +309,7 @@ class DiscoveryStore {
     await followedProvider.deleteByAccount(accountId);
     await followedProvider.deleteByAccount(null);
     await loadFollowed();
-    syncStatus.value = '已清除关注缓存';
+    _setSyncStatus('已清除关注缓存');
   }
 
   // ---------- 隐藏画师列表（对所有账号生效） ----------

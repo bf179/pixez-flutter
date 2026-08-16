@@ -73,7 +73,7 @@ class _DiscoverySettingPageState extends State<DiscoverySettingPage> {
           // 同步关注列表：点击后后台执行，不占用操作焦点，状态实时刷新
           Observer(builder: (_) {
             final syncing = discoveryStore.syncing;
-            final status = discoveryStore.syncStatus.value;
+            final status = discoveryStore.syncStatus;
             return ListTile(
               leading: const Icon(Icons.sync),
               title: const Text('同步关注列表'),
