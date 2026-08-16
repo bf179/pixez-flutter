@@ -1376,8 +1376,8 @@ packages:
     dependency: "direct main"
     description:
       path: rhttp
-      ref: main
-      resolved-ref: "158bc194eaefccc54ffe9ecb0e4b5f38d551a5e4"
+      ref: c326cde48fdb3a81c723bb33304d31e279008296
+      resolved-ref: "c326cde48fdb3a81c723bb33304d31e279008296"
       url: "https://github.com/Tienisto/rhttp.git"
     source: git
     version: "0.11.1"

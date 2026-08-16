@@ -78,7 +78,10 @@ dependencies:
     git:
       url: https://github.com/Tienisto/rhttp.git
       path: rhttp
-      ref: main
+      # 固定到修复 cargokit 与 Flutter 3.32+ 兼容性的提交：
+      # 旧版 cargokit 按 "FlutterPlugin" 判断插件类，Flutter 3.32 改为
+      # com.flutter.gradle.FlutterPlugin 后原生库无法构建（librhttp.so 缺失）
+      ref: c326cde48fdb3a81c723bb33304d31e279008296
   dio_compatibility_layer: ^0.1.0
   flutter_cache_manager_dio: ^4.0.0
   file_picker: ^9.0.0
