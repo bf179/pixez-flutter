@@ -17,7 +17,7 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:pixez/component/painter_avatar.dart';
 import 'package:pixez/constants.dart';
@@ -33,6 +33,7 @@ import 'package:pixez/page/hello/recom/recom_spotlight_page.dart';
 import 'package:pixez/page/hello/setting/setting_page.dart';
 import 'package:pixez/page/preview/preview_page.dart';
 import 'package:pixez/page/search/search_page.dart';
+import 'package:pixez/utils/haptic_util.dart';
 
 class HelloPage extends StatefulWidget {
   @override
@@ -56,31 +57,37 @@ class _HelloPageState extends State<HelloPage> {
   @override
   void initState() {
     _lists = <Widget>[
-      Observer(builder: (context) {
-        if (accountStore.now != null)
-          return RecomSpolightPage();
-        else
-          return PreviewPage();
-      }),
-      Observer(builder: (context) {
-        if (accountStore.now != null)
-          return RankPage();
-        else
-          return Column(children: [
-            AppBar(
-              title: Text('rank(day)'),
-            ),
-            Expanded(child: PreviewPage())
-          ]);
-      }),
+      Observer(
+        builder: (context) {
+          if (accountStore.now != null)
+            return RecomSpolightPage();
+          else
+            return PreviewPage();
+        },
+      ),
+      Observer(
+        builder: (context) {
+          if (accountStore.now != null)
+            return RankPage();
+          else
+            return Column(
+              children: [
+                AppBar(title: Text('rank(day)')),
+                Expanded(child: PreviewPage()),
+              ],
+            );
+        },
+      ),
       NewPage(),
       SearchPage(),
-      SettingPage()
+      SettingPage(),
     ];
     Constants.type = 0;
     fetcher.context = context;
-    index = userSetting.welcomePageNum;
-    _pageController = PageController(initialPage: userSetting.welcomePageNum);
+    index = userSetting.materialWelcomePageIndex;
+    _pageController = PageController(
+      initialPage: userSetting.materialWelcomePageIndex,
+    );
     super.initState();
     saveStore.ctx = this.context;
     saveStore.saveStream.listen((stream) {
@@ -91,18 +98,22 @@ class _HelloPageState extends State<HelloPage> {
   }
 
   Future<void> initPlatformState() async {
-    if (Prefer.getInt('language_num') == null) {
-      Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => GuidePage()));
-    }
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      if (mounted && Prefer.getInt('language_num') == null) {
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (context) => GuidePage()));
+      }
+    });
   }
 
   Future<void> initLinksStream() async {
     try {
       Uri? initialLink = await DeepLinkPlugin.getInitialUri();
       if (initialLink != null) Leader.pushWithUri(context, initialLink);
-      _sub = DeepLinkPlugin.uriLinkStream
-          .listen((Uri? link) => Leader.pushWithUri(context, link!));
+      _sub = DeepLinkPlugin.uriLinkStream.listen(
+        (Uri? link) => Leader.pushWithUri(context, link!),
+      );
     } catch (e) {
       print(e);
     }
@@ -113,32 +124,35 @@ class _HelloPageState extends State<HelloPage> {
     if (bottomNavigatorHeight == null) {
       bottomNavigatorHeight = MediaQuery.of(context).padding.bottom + 80;
     }
-    return LayoutBuilder(builder: (context, constraints) {
-      final wide = constraints.maxWidth > constraints.maxHeight;
-      return Scaffold(
-        body: Row(
-          children: <Widget>[
-            if (wide) ..._buildRail(context),
-            Expanded(
-              child: _buildPageView(context),
-            ),
-          ],
-        ),
-        extendBody: true,
-        bottomNavigationBar: wide
-            ? null
-            : Observer(builder: (context) {
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 400),
-                  transform: Matrix4.translationValues(
-                      0,
-                      fullScreenStore.fullscreen ? bottomNavigatorHeight! : 0,
-                      0),
-                  child: _buildNavigationBar(context),
-                );
-              }),
-      );
-    });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth > constraints.maxHeight;
+        return Scaffold(
+          body: Row(
+            children: <Widget>[
+              if (wide) ..._buildRail(context),
+              Expanded(child: _buildPageView(context)),
+            ],
+          ),
+          extendBody: true,
+          bottomNavigationBar: wide
+              ? null
+              : Observer(
+                  builder: (context) {
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      transform: Matrix4.translationValues(
+                        0,
+                        fullScreenStore.fullscreen ? bottomNavigatorHeight! : 0,
+                        0,
+                      ),
+                      child: _buildNavigationBar(context),
+                    );
+                  },
+                ),
+        );
+      },
+    );
   }
 
   List<Widget> _buildRail(BuildContext context) {
@@ -149,26 +163,36 @@ class _HelloPageState extends State<HelloPage> {
             selectedIndex: index,
             labelType: NavigationRailLabelType.all,
             onDestinationSelected: (int index) {
+              HapticUtil.selectionClick();
+              if (this.index == index) {
+                topStore.setTop("${index + 1}00");
+              }
               _pageController.jumpToPage(index);
               setState(() {
-                index = index;
+                this.index = index;
               });
             },
             destinations: <NavigationRailDestination>[
               NavigationRailDestination(
-                  icon: Icon(Icons.home), label: Text(I18n.of(context).home)),
+                icon: Icon(Icons.home),
+                label: Text(I18n.of(context).home),
+              ),
               NavigationRailDestination(
-                  icon: Icon(Icons.leaderboard),
-                  label: Text(I18n.of(context).rank)),
+                icon: Icon(Icons.leaderboard),
+                label: Text(I18n.of(context).rank),
+              ),
               NavigationRailDestination(
-                  icon: Icon(Icons.favorite),
-                  label: Text(I18n.of(context).quick_view)),
+                icon: Icon(Icons.favorite),
+                label: Text(I18n.of(context).quick_view),
+              ),
               NavigationRailDestination(
-                  icon: Icon(Icons.search),
-                  label: Text(I18n.of(context).search)),
+                icon: Icon(Icons.search),
+                label: Text(I18n.of(context).search),
+              ),
               NavigationRailDestination(
-                  icon: Icon(Icons.more_horiz),
-                  label: Text(I18n.of(context).more)),
+                icon: Icon(Icons.more_horiz),
+                label: Text(I18n.of(context).more),
+              ),
             ],
           ),
           Positioned(
@@ -177,8 +201,9 @@ class _HelloPageState extends State<HelloPage> {
             bottom: 0.0,
             child: Padding(
               padding: EdgeInsets.only(
-                  left: MediaQuery.of(context).padding.left,
-                  bottom: MediaQuery.of(context).padding.bottom + 4.0),
+                left: MediaQuery.of(context).padding.left,
+                bottom: MediaQuery.of(context).padding.bottom + 4.0,
+              ),
               child: Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -193,7 +218,8 @@ class _HelloPageState extends State<HelloPage> {
                   child: accountStore.now != null
                       ? PainterAvatar(
                           url: accountStore.now!.userImage,
-                          id: int.tryParse(accountStore.now!.userId) ?? 0)
+                          id: int.tryParse(accountStore.now!.userId) ?? 0,
+                        )
                       : Container(),
                 ),
               ),
@@ -211,32 +237,41 @@ class _HelloPageState extends State<HelloPage> {
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: NavigationBar(
           height: 68,
-          backgroundColor:
-              Theme.of(context).colorScheme.surface.withValues(alpha: 0.9),
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.surface.withValues(alpha: 0.9),
           destinations: [
             NavigationDestination(
-                icon: Icon(Icons.home), label: I18n.of(context).home),
+              icon: Icon(Icons.home),
+              label: I18n.of(context).home,
+            ),
             NavigationDestination(
-                icon: Icon(
-                  Icons.leaderboard,
-                ),
-                label: I18n.of(context).rank),
+              icon: Icon(Icons.leaderboard),
+              label: I18n.of(context).rank,
+            ),
             NavigationDestination(
-                icon: Icon(Icons.favorite), label: I18n.of(context).quick_view),
+              icon: Icon(Icons.favorite),
+              label: I18n.of(context).quick_view,
+            ),
             NavigationDestination(
-                icon: Icon(Icons.search), label: I18n.of(context).search),
+              icon: Icon(Icons.search),
+              label: I18n.of(context).search,
+            ),
             NavigationDestination(
-                icon: Icon(Icons.more_horiz), label: I18n.of(context).more)
+              icon: Icon(Icons.more_horiz),
+              label: I18n.of(context).more,
+            ),
           ],
           selectedIndex: index,
           onDestinationSelected: (value) {
-            if (this.index == index) {
-              topStore.setTop("${index + 1}00");
+            HapticUtil.selectionClick();
+            if (this.index == value) {
+              topStore.setTop("${value + 1}00");
             }
             setState(() {
               this.index = value;
             });
-            if (_pageController.hasClients) _pageController.jumpToPage(index);
+            if (_pageController.hasClients) _pageController.jumpToPage(value);
           },
         ),
       ),
@@ -245,15 +280,16 @@ class _HelloPageState extends State<HelloPage> {
 
   PageView _buildPageView(BuildContext context) {
     return PageView.builder(
-        itemCount: 5,
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            this.index = index;
-          });
-        },
-        itemBuilder: (context, index) {
-          return _lists[index];
+      itemCount: 5,
+      controller: _pageController,
+      onPageChanged: (index) {
+        setState(() {
+          this.index = index;
         });
+      },
+      itemBuilder: (context, index) {
+        return _lists[index];
+      },
+    );
   }
 }

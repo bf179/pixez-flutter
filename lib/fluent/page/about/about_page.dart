@@ -342,12 +342,13 @@ class _AboutPageState extends State<AboutPage> {
             subtitle: Text(I18n.of(context).share_this_app_link),
             onPressed: () {
               if (Platform.isIOS) {
-                Share.share('https://apps.apple.com/cn/app/pixez/id1494435126');
+                SharePlus.instance.share(ShareParams(
+                    text: 'https://apps.apple.com/cn/app/pixez/id1494435126'));
               }
             },
           ),
           ListTile(
-            leading: Icon(FontAwesomeIcons.telegram),
+            leading: FaIcon(FontAwesomeIcons.telegram),
             title: Text("Group"),
             subtitle: Text('t.me/PixEzChannel'),
           ),
@@ -428,7 +429,7 @@ class _AboutPageState extends State<AboutPage> {
               Card(
                 margin: EdgeInsets.all(8.0),
                 child: ListTile(
-                  leading: Icon(FontAwesomeIcons.mugSaucer),
+                  leading: FaIcon(FontAwesomeIcons.mugSaucer),
                   title: Text(i.description),
                   subtitle: Text(i.price),
                   onPressed: () {

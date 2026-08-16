@@ -57,4 +57,12 @@ abstract class _TagForIllustStoreBase with Store {
       errorMessage = "" + e.toString();
     }
   }
+
+  @action
+  checkAll() {
+    bool isAllChecked = checkList.every((element) => element);
+    for (int i = 0; i < checkList.length; i++) {
+      check(i, !isAllChecked);
+    }
+  }
 }

@@ -18,7 +18,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -55,7 +54,9 @@ if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
-val packageName = if (dartEnvironmentVariables["IS_GOOGLEPLAY"] as Boolean) {
+val isGooglePlay = dartEnvironmentVariables["IS_GOOGLEPLAY"] as Boolean
+
+val packageName = if (isGooglePlay) {
     "com.perol.play.pixez"
 } else {
     "com.perol.pixev"
@@ -63,32 +64,33 @@ val packageName = if (dartEnvironmentVariables["IS_GOOGLEPLAY"] as Boolean) {
 
 android {
     namespace = "com.perol.pixez"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    compileSdk = 37
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+    buildFeatures {
+        buildConfig = true
     }
-
 
     defaultConfig {
         applicationId = packageName
-        minSdk = 21
-        targetSdk = 35
-        versionCode = 10009700
-        versionName = "0.9.70 regex#"
+        minSdk = flutter.minSdkVersion
+        targetSdk = 37
+        versionCode = 10010060
+        versionName = "0.9.106 rr"
+        buildConfigField("boolean", "IS_GOOGLEPLAY", isGooglePlay.toString())
         ndk {
             abiFilters.addAll(arrayOf("armeabi-v7a", "arm64-v8a", "x86_64"))
         }
     }
     splits {
         abi {
-            isEnable = true
+            val isBuildingBundle = gradle.startParameter.taskNames.any { it.lowercase().contains("bundle") }
+            isEnable = !isBuildingBundle
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86_64")
             isUniversalApk = true
@@ -97,37 +99,63 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePwd: String?
-            val alias: String?
-            val pwd: String?
-            if (rootProject.file("local.properties").exists()) {
-                val properties = Properties().apply {
-                    rootProject.file("local.properties").inputStream().use { load(it) }
-                }
-                keystorePwd = properties.getProperty("RELEASE_STORE_PASSWORD")
-                alias = properties.getProperty("RELEASE_KEY_ALIAS")
-                pwd = properties.getProperty("RELEASE_KEY_PASSWORD")
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+                storePassword = keystoreProperties["storePassword"] as String
             } else {
-                keystorePwd = null
-                alias = null
-                pwd = null
+                val keystorePwd: String?
+                val alias: String?
+                val pwd: String?
+                if (rootProject.file("local.properties").exists()) {
+                    val properties = Properties().apply {
+                        rootProject.file("local.properties").inputStream().use { load(it) }
+                    }
+                    keystorePwd = properties.getProperty("RELEASE_STORE_PASSWORD")
+                    alias = properties.getProperty("RELEASE_KEY_ALIAS")
+                    pwd = properties.getProperty("RELEASE_KEY_PASSWORD")
+                } else {
+                    keystorePwd = null
+                    alias = null
+                    pwd = null
+                }
+                storeFile = rootProject.file("app/config/release.keystore")
+                storePassword = keystorePwd ?: System.getenv("KEYSTORE_PASS")
+                keyAlias = alias ?: System.getenv("ALIAS_NAME")
+                keyPassword = pwd ?: System.getenv("ALIAS_PASS")
             }
-
-            storeFile = rootProject.file("app/config/release.keystore")
-            storePassword = keystorePwd ?: System.getenv("KEYSTORE_PASS")
-            keyAlias = alias ?: System.getenv("ALIAS_NAME")
-            keyPassword = pwd ?: System.getenv("ALIAS_PASS")
         }
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+        }
+
         getByName("release") {
-            // 未提供签名密钥（KEYSTORE_PASS 环境变量）时产出未签名 APK，
-            // 便于 CI 自动构建发布无签名产物。
-            if (System.getenv("KEYSTORE_PASS") != null) {
+            // 仅当存在可用签名密钥时才签名；否则产出未签名 APK（CI 自动构建场景）
+            val hasKeystore = keystorePropertiesFile.exists() ||
+                (rootProject.file("app/config/release.keystore").exists() &&
+                    System.getenv("KEYSTORE_PASS") != null)
+            if (hasKeystore) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
+    }
+
+    if (isGooglePlay) {
+        sourceSets {
+            getByName("release") {
+                manifest.srcFile("src/googlePlayRelease/AndroidManifest.xml")
+            }
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
@@ -136,17 +164,17 @@ flutter {
 }
 
 dependencies {
+    implementation(project(":androidndkgif"))
     implementation("androidx.core:core-remoteviews:1.1.0")
     implementation("androidx.annotation:annotation:1.9.1")
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
 //    implementation project(":weiss")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("io.coil-kt.coil3:coil:3.1.0")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.1.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
+    implementation("com.google.android.material:material:1.13.0")
+    implementation("io.coil-kt.coil3:coil:3.3.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
 //    implementation("androidx.webkit:webkit:1.4.0")
-    implementation("androidx.browser:browser:1.8.0")
-    implementation("io.github.waynejo:androidndkgif:1.0.1")
+    implementation("androidx.browser:browser:1.9.0")
     implementation("androidx.preference:preference-ktx:1.2.1")
-    implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation("androidx.documentfile:documentfile:1.1.0")
 }

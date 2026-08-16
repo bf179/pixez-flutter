@@ -24,10 +24,10 @@ import 'package:dio/dio.dart';
 import 'package:dio_compatibility_layer/dio_compatibility_layer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
-import 'package:pixez/er/hoster.dart';
 import 'package:pixez/main.dart';
 import 'package:pixez/models/account.dart';
 import 'package:pixez/network/oauth_client.dart';
+import 'package:pixez/network/pixez_network_settings.dart';
 import 'package:rhttp/rhttp.dart' as r;
 
 class AccountClient {
@@ -55,40 +55,48 @@ class AccountClient {
 
   Future<Response> createProvisionalAccount(String user_name) async {
     await checkDio();
-    return httpClient.post("/api/provisional-accounts/create",
-        data: {
-          "user_name": user_name,
-          "ref": "pixiv_android_app_provisional_account"
+    return httpClient.post(
+      "/api/provisional-accounts/create",
+      data: {
+        "user_name": user_name,
+        "ref": "pixiv_android_app_provisional_account",
+      },
+      options: Options(
+        contentType: Headers.formUrlEncodedContentType,
+        headers: {
+          "Authorization": "Bearer l-f9qZ0ZyqSwRyZs8-MymbtWBbSxmCu1pmbOlyisou8",
         },
-        options:
-            Options(contentType: Headers.formUrlEncodedContentType, headers: {
-          "Authorization": "Bearer l-f9qZ0ZyqSwRyZs8-MymbtWBbSxmCu1pmbOlyisou8"
-        }));
+      ),
+    );
   }
 
-  Future<Response> accountEdit(
-      {String? newMailAddress,
-      String? currentPassword,
-      newPassword,
-      newUserAccount}) async {
+  Future<Response> accountEdit({
+    String? newMailAddress,
+    String? currentPassword,
+    newPassword,
+    newUserAccount,
+  }) async {
     AccountProvider accountProvider = new AccountProvider();
     await accountProvider.open();
     final allAccount = await accountProvider.getAllAccount();
     AccountPersist accountPersist = allAccount[0];
     currentPassword = accountPersist.passWord;
     await checkDio();
-    return httpClient.post("/api/account/edit",
-        data: {
-          "new_mail_address": newMailAddress,
-          "new_user_account": newUserAccount,
-          "current_password": currentPassword,
-          "new_password": newPassword
-        }..removeWhere((f, n) => n == null),
-        options: Options(
-            contentType: Headers.formUrlEncodedContentType,
-            headers: {
-              OAuthClient.AUTHORIZATION: "Bearer " + accountPersist.accessToken
-            }));
+    return httpClient.post(
+      "/api/account/edit",
+      data: {
+        "new_mail_address": newMailAddress,
+        "new_user_account": newUserAccount,
+        "current_password": currentPassword,
+        "new_password": newPassword,
+      }..removeWhere((f, n) => n == null),
+      options: Options(
+        contentType: Headers.formUrlEncodedContentType,
+        headers: {
+          OAuthClient.AUTHORIZATION: "Bearer " + accountPersist.accessToken,
+        },
+      ),
+    );
   }
 
   Future<void> checkDio() async {
@@ -99,11 +107,9 @@ class AccountClient {
 
   Future<Dio> createDioClient() async {
     String time = getIsoDate();
-    final String baseUrl = userSetting.disableBypassSni
-        ? 'https://${BASE_API_URL_HOST}'
-        : 'https://pixiv.me';
-    final dio = Dio(BaseOptions(
-        baseUrl: baseUrl,
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: 'https://${BASE_API_URL_HOST}',
         headers: {
           "X-Client-Time": time,
           "X-Client-Hash": getHash(time + hashSalt),
@@ -112,29 +118,26 @@ class AccountClient {
           "App-OS": "Android",
           "App-OS-Version": "Android 6.0",
           "App-Version": "5.0.166",
-          HttpHeaders.hostHeader: BASE_API_URL_HOST
+          HttpHeaders.hostHeader: BASE_API_URL_HOST,
         },
-        contentType: Headers.formUrlEncodedContentType));
+        contentType: Headers.formUrlEncodedContentType,
+      ),
+    );
     if (kDebugMode) {
-      dio.interceptors.add(LogInterceptor(
-          responseBody: true, responseHeader: true, requestBody: true));
+      dio.interceptors.add(
+        LogInterceptor(
+          responseBody: true,
+          responseHeader: true,
+          requestBody: true,
+        ),
+      );
     }
     final compatibleClient = await r.RhttpCompatibleClient.create(
-        settings: userSetting.disableBypassSni
-            ? null
-            : r.ClientSettings(
-                tlsSettings:
-                    r.TlsSettings(verifyCertificates: true, sni: true),
-                dnsSettings: r.DnsSettings.dynamic(
-                  resolver: (host) async {
-                    if (host.endsWith("pixiv.net") || host == "pixiv.me") {
-                      return [Hoster.pixiv()];
-                    }
-                    return await InternetAddress.lookup(host)
-                        .then((value) => value.map((e) => e.address).toList());
-                  },
-                ),
-              ));
+      settings: PixezNetworkSettings.forHost(
+        BASE_API_URL_HOST,
+        userSetting.oauthNetworkMode,
+      ),
+    );
     dio.httpClientAdapter = ConversionLayerAdapter(compatibleClient);
     _httpClient = dio;
     if (Platform.isAndroid) {

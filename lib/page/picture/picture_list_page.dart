@@ -14,7 +14,8 @@
  *
  */
 
-import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:pixez/lighting/lighting_store.dart';
 import 'package:pixez/main.dart';
@@ -70,29 +71,50 @@ class _PictureListPageState extends State<PictureListPage> {
   Widget build(BuildContext context) {
     screenWidth = MediaQuery.of(context).size.width / 2;
     return Observer(builder: (_) {
-      return PageView.builder(
-        controller: _pageController,
-        physics: userSetting.swipeChangeArtwork
-            ? null
-            : NeverScrollableScrollPhysics(),
-        itemBuilder: (BuildContext context, int index) {
-          if (index == _iStores.length && _lightingStore != null) {
-            return PictureListNextPage(
-              lightingStore: _lightingStore!,
-            );
-          }
-          final f = _iStores[index];
-          String? tag = nowPosition == index ? widget.heroString : null;
-          return IllustLightingPage(
-            id: f.id,
-            heroString: tag,
-            store: f,
-            onHorizontalDragEnd: (details) {
-              _onDrag(details);
+      return MediaQuery(
+        data: MediaQuery.of(context)
+            .copyWith(gestureSettings: DeviceGestureSettings(touchSlop: 50)),
+        child: ScrollConfiguration(
+          // Flutter excludes mouse from dragDevices by default (#1308).
+          behavior: ScrollConfiguration.of(context).copyWith(
+            dragDevices: {
+              PointerDeviceKind.touch,
+              PointerDeviceKind.stylus,
+              PointerDeviceKind.invertedStylus,
+              PointerDeviceKind.trackpad,
+              PointerDeviceKind.mouse,
             },
-          );
-        },
-        itemCount: _iStores.length + 1,
+          ),
+          child: PageView.builder(
+            controller: _pageController,
+            physics: userSetting.swipeChangeArtwork
+                ? null
+                : NeverScrollableScrollPhysics(),
+            itemBuilder: (BuildContext context, int index) {
+              if (index == _iStores.length && _lightingStore != null) {
+                return PictureListNextPage(
+                  lightingStore: _lightingStore!,
+                );
+              }
+              final f = _iStores[index];
+              String? tag = nowPosition == index ? widget.heroString : null;
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                    gestureSettings:
+                        DeviceGestureSettings(touchSlop: kTouchSlop)),
+                child: IllustLightingPage(
+                  id: f.id,
+                  heroString: tag,
+                  store: f,
+                  onHorizontalDragEnd: (details) {
+                    _onDrag(details);
+                  },
+                ),
+              );
+            },
+            itemCount: _iStores.length + 1,
+          ),
+        ),
       );
     });
   }

@@ -16,7 +16,7 @@
 
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:pixez/component/selectable_html.dart';
 import 'package:pixez/i18n.dart';
@@ -171,7 +171,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                           await launchUrlString(url);
                         }
                       } catch (e) {
-                        Share.share(url);
+                        SharePlus.instance.share(ShareParams(text: url));
                       }
                     }
                   }),

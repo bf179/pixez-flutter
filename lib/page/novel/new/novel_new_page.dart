@@ -14,7 +14,7 @@
  *
  */
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pixez/component/painter_avatar.dart';
 import 'package:pixez/er/leader.dart';
 import 'package:pixez/i18n.dart';
@@ -22,7 +22,9 @@ import 'package:pixez/main.dart';
 import 'package:pixez/page/follow/follow_list.dart';
 import 'package:pixez/page/novel/bookmark/novel_bookmark_page.dart';
 import 'package:pixez/page/novel/new/novel_new_list.dart';
+import 'package:pixez/page/novel/new/novel_watch_list.dart';
 import 'package:pixez/page/novel/user/novel_users_page.dart';
+import 'package:pixez/utils/haptic_util.dart';
 
 class NovelNewPage extends StatefulWidget {
   @override
@@ -35,7 +37,7 @@ class _NovelNewPageState extends State<NovelNewPage>
 
   @override
   void initState() {
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     super.initState();
   }
 
@@ -53,6 +55,9 @@ class _NovelNewPageState extends State<NovelNewPage>
         children: [
           AppBar(
             title: TabBar(
+              onTap: (i) {
+                HapticUtil.selectionClick();
+              },
               controller: _tabController,
               isScrollable: true,
               tabs: [
@@ -61,6 +66,9 @@ class _NovelNewPageState extends State<NovelNewPage>
                 ),
                 Tab(
                   text: I18n.of(context).bookmark,
+                ),
+                Tab(
+                  text: I18n.of(context).watchlist,
                 ),
                 Tab(
                   text: I18n.of(context).follow,
@@ -99,6 +107,7 @@ class _NovelNewPageState extends State<NovelNewPage>
             children: [
               NovelNewList(),
               NovelBookmarkPage(),
+              (accountStore.now != null) ? NovelWatchList() : Container(),
               (accountStore.now != null)
                   ? FollowList(
                       id: int.parse(accountStore.now!.userId), isNovel: true)

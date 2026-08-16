@@ -16,7 +16,7 @@
 
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:pixez/component/picker/utils.dart';
 import 'package:pixez/er/leader.dart';
@@ -67,7 +67,7 @@ class _SelectableHtmlState extends State<SelectableHtml> {
                   mode: LaunchMode.externalNonBrowserApplication);
             }
           } catch (e) {
-            Share.share(url);
+            SharePlus.instance.share(ShareParams(text: url));
           }
           return true;
         },

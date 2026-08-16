@@ -1,10 +1,16 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:pixez/utils/haptic_util.dart';
 
 class SortGroup extends StatefulWidget {
   final List<String> children;
   final Function onChange;
+  final int initIndex;
 
-  const SortGroup({Key? key, required this.children, required this.onChange})
+  const SortGroup(
+      {Key? key,
+      required this.children,
+      required this.onChange,
+      this.initIndex = 0})
       : super(key: key);
 
   @override
@@ -16,6 +22,7 @@ class _SortGroupState extends State<SortGroup> {
 
   @override
   void initState() {
+    this.index = widget.initIndex;
     super.initState();
   }
 
@@ -36,8 +43,9 @@ class _SortGroupState extends State<SortGroup> {
         for (var (index, i) in widget.children.indexed)
           ButtonSegment(value: index, label: Text(i)),
       ],
-      selected: {index},
+      selected: {this.index},
       onSelectionChanged: (p0) {
+        HapticUtil.selectionClick();
         widget.onChange(p0.first);
         if (mounted)
           setState(() {

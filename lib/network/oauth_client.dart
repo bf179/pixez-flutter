@@ -25,8 +25,8 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:pixez/constants.dart';
 import 'package:pixez/crypto_plugin.dart';
-import 'package:pixez/er/hoster.dart';
 import 'package:pixez/main.dart';
+import 'package:pixez/network/pixez_network_settings.dart';
 import 'package:rhttp/rhttp.dart' as r;
 
 final OAuthClient oAuthClient = OAuthClient();
@@ -55,21 +55,11 @@ class OAuthClient {
 
   Future<Dio> createDioClient() async {
     final compatibleClient = await r.RhttpCompatibleClient.create(
-        settings: userSetting.disableBypassSni
-            ? null
-            : r.ClientSettings(
-                tlsSettings:
-                    r.TlsSettings(verifyCertificates: true, sni: true),
-                dnsSettings: r.DnsSettings.dynamic(
-                  resolver: (host) async {
-                    if (host.endsWith("pixiv.net") || host == "pixiv.me") {
-                      return [Hoster.pixiv()];
-                    }
-                    return await InternetAddress.lookup(host)
-                        .then((value) => value.map((e) => e.address).toList());
-                  },
-                ),
-              ));
+      settings: PixezNetworkSettings.forHost(
+        BASE_OAUTH_URL_HOST,
+        userSetting.oauthNetworkMode,
+      ),
+    );
     httpClient.httpClientAdapter = ConversionLayerAdapter(compatibleClient);
     if (Platform.isAndroid) {
       try {
@@ -86,11 +76,9 @@ class OAuthClient {
 
   OAuthClient() {
     String time = getIsoDate();
-    final String baseUrl = userSetting.disableBypassSni
-        ? 'https://${BASE_OAUTH_URL_HOST}'
-        : 'https://pixiv.me';
-    httpClient = Dio(BaseOptions(
-        baseUrl: baseUrl,
+    httpClient = Dio(
+      BaseOptions(
+        baseUrl: 'https://${BASE_OAUTH_URL_HOST}',
         headers: {
           "X-Client-Time": time,
           "X-Client-Hash": getHash(time + hashSalt),
@@ -99,12 +87,18 @@ class OAuthClient {
           "App-OS": "Android",
           "App-OS-Version": "Android 6.0",
           "App-Version": "5.0.166",
-          HttpHeaders.hostHeader: BASE_OAUTH_URL_HOST,
         },
-        contentType: Headers.formUrlEncodedContentType));
+        contentType: Headers.formUrlEncodedContentType,
+      ),
+    );
     if (kDebugMode) {
-      httpClient.interceptors.add(LogInterceptor(
-          responseBody: true, responseHeader: true, requestBody: true));
+      httpClient.interceptors.add(
+        LogInterceptor(
+          responseBody: true,
+          responseHeader: true,
+          requestBody: true,
+        ),
+      );
     }
   }
 
@@ -114,33 +108,41 @@ class OAuthClient {
     return digest.toString();
   }
 
-  Future<Response> postAuthToken(String userName, String passWord,
-      {String deviceToken = "pixiv"}) {
-    return httpClient.post("/auth/token", data: {
-      "client_id": CLIENT_ID,
-      "client_secret": CLIENT_SECRET,
-      "grant_type": "password",
-      "username": userName,
-      "password": passWord,
-      "Device_token": deviceToken,
-      "get_secure_url": true,
-      "include_policy": true
-    });
+  Future<Response> postAuthToken(
+    String userName,
+    String passWord, {
+    String deviceToken = "pixiv",
+  }) {
+    return httpClient.post(
+      "/auth/token",
+      data: {
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "grant_type": "password",
+        "username": userName,
+        "password": passWord,
+        "Device_token": deviceToken,
+        "get_secure_url": true,
+        "include_policy": true,
+      },
+    );
   }
 
   Future<Response> code2Token(String code) {
-    return httpClient.post("/auth/token",
-        data: {
-          "code": code,
-          "redirect_uri":
-              "https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback",
-          "grant_type": "authorization_code",
-          "include_policy": true,
-          "client_id": CLIENT_ID,
-          "code_verifier": Constants.code_verifier,
-          "client_secret": CLIENT_SECRET
-        },
-        options: Options(contentType: Headers.formUrlEncodedContentType));
+    return httpClient.post(
+      "/auth/token",
+      data: {
+        "code": code,
+        "redirect_uri":
+            "https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback",
+        "grant_type": "authorization_code",
+        "include_policy": true,
+        "client_id": CLIENT_ID,
+        "code_verifier": Constants.code_verifier,
+        "client_secret": CLIENT_SECRET,
+      },
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
   }
 
   static Future<String> generateWebviewUrl({bool create = false}) async {
@@ -156,14 +158,19 @@ class OAuthClient {
     return await CryptoPlugin.getCodeVer();
   }
 
-  Future<Response> postRefreshAuthToken(
-      {refreshToken = String, deviceToken = String}) {
-    return httpClient.post("/auth/token", data: {
-      "client_id": CLIENT_ID,
-      "client_secret": CLIENT_SECRET,
-      "grant_type": "refresh_token",
-      "refresh_token": refreshToken,
-      "include_policy": true
-    });
+  Future<Response> postRefreshAuthToken({
+    refreshToken = String,
+    deviceToken = String,
+  }) {
+    return httpClient.post(
+      "/auth/token",
+      data: {
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "grant_type": "refresh_token",
+        "refresh_token": refreshToken,
+        "include_policy": true,
+      },
+    );
   }
 }

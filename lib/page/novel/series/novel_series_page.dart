@@ -1,5 +1,5 @@
 import 'package:easy_refresh/easy_refresh.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:pixez/component/painter_avatar.dart';
@@ -10,6 +10,7 @@ import 'package:pixez/models/novel_recom_response.dart';
 import 'package:pixez/models/novel_series_detail.dart';
 import 'package:pixez/network/api_client.dart';
 import 'package:pixez/page/novel/component/novel_bookmark_button.dart';
+import 'package:pixez/page/novel/new/novel_watch_list_notifier.dart';
 import 'package:pixez/page/novel/user/novel_users_page.dart';
 import 'package:pixez/page/novel/viewer/novel_store.dart';
 import 'package:pixez/page/novel/viewer/novel_viewer.dart';
@@ -31,7 +32,10 @@ class NovelSeriesState {
 }
 
 class NovelSeriesNotifier extends Notifier<NovelSeriesState?> {
-  final EasyRefreshController refreshController = EasyRefreshController();
+  final EasyRefreshController refreshController = EasyRefreshController(
+    controlFinishLoad: true,
+    controlFinishRefresh: true,
+  );
 
   Future<void> fetch(int id) async {
     try {
@@ -68,6 +72,33 @@ class NovelSeriesNotifier extends Notifier<NovelSeriesState?> {
       }
     } else {
       refreshController.finishLoad(IndicatorResult.success, true);
+    }
+  }
+
+  Future<void> addWatchlist() async {
+    try {
+      await apiClient.watchListNovelAdd(state!.novelSeriesDetail.id.toString());
+      final updatedDetail = state!.novelSeriesDetail;
+      updatedDetail.watchlistAdded = true;
+      final result = NovelSeriesState(
+          updatedDetail, state!.novels, state!.novelStores, state!.nextUrl);
+      state = result;
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  Future<void> removeWatchlist() async {
+    try {
+      await apiClient
+          .watchListNovelDelete(state!.novelSeriesDetail.id.toString());
+      final updatedDetail = state!.novelSeriesDetail;
+      updatedDetail.watchlistAdded = false;
+      final result = NovelSeriesState(
+          updatedDetail, state!.novels, state!.novelStores, state!.nextUrl);
+      state = result;
+    } catch (e) {
+      print(e);
     }
   }
 
@@ -114,8 +145,9 @@ class NovelSeriesPage extends HookConsumerWidget {
                   final pos = box != null
                       ? box.localToGlobal(Offset.zero) & box.size
                       : null;
-                  Share.share("https://www.pixiv.net/novel/series/$id",
-                      sharePositionOrigin: pos);
+                  final link = "https://www.pixiv.net/novel/series/$id";
+                  SharePlus.instance
+                      .share(ShareParams(text: link, sharePositionOrigin: pos));
                 },
                 icon: Icon(Icons.share));
           })
@@ -156,6 +188,55 @@ class NovelSeriesPage extends HookConsumerWidget {
                             ),
                           ),
                         ),
+                        SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () {
+                            if (data.novelSeriesDetail.watchlistAdded == true) {
+                              ref
+                                  .read(novelSeriesProvider.notifier)
+                                  .removeWatchlist();
+                              ref
+                                  .read(novelWatchListStoreProvider.notifier)
+                                  .fetch();
+                            } else {
+                              ref
+                                  .read(novelSeriesProvider.notifier)
+                                  .addWatchlist();
+                              ref
+                                  .read(novelWatchListStoreProvider.notifier)
+                                  .fetch();
+                            }
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Container(
+                            decoration: data.novelSeriesDetail.watchlistAdded ==
+                                    true
+                                ? BoxDecoration(
+                                    border: Border.all(
+                                        color: Colors.black, width: 1),
+                                    borderRadius: BorderRadius.circular(21),
+                                  )
+                                : BoxDecoration(
+                                    color: Colors.blue,
+                                    borderRadius: BorderRadius.circular(21)),
+                            padding: EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 12),
+                            child: Text(
+                                data.novelSeriesDetail.watchlistAdded == true
+                                    ? I18n.of(context).watchlist_added
+                                    : I18n.of(context).add_to_watchlist,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelLarge
+                                    ?.copyWith(
+                                        color: data.novelSeriesDetail
+                                                    .watchlistAdded ==
+                                                true
+                                            ? Colors.black
+                                            : Colors.white)),
+                          ),
+                        ),
+                        SizedBox(height: 12),
                       ],
                       crossAxisAlignment: CrossAxisAlignment.center,
                     ),

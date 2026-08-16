@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:bot_toast/bot_toast.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:html/parser.dart' show parse;
@@ -18,7 +18,6 @@ import 'package:pixez/er/lprinter.dart';
 import 'package:pixez/er/prefer.dart';
 import 'package:pixez/i18n.dart';
 import 'package:pixez/main.dart';
-import 'package:pixez/network/api_client.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
@@ -26,26 +25,26 @@ part 'sauce_notifier.freezed.dart';
 part 'sauce_notifier.g.dart';
 
 @freezed
-class SauceState with _$SauceState {
-  const factory SauceState({
-    required bool notStart,
-  }) = _SauceState;
+abstract class SauceState with _$SauceState {
+  const factory SauceState({required bool notStart}) = _SauceState;
 }
 
 @riverpod
 class Sauce extends _$Sauce {
-  static String host = "saucenao.com";
-  Dio dio = Dio(BaseOptions(
+  Dio dio = Dio(
+    BaseOptions(
       baseUrl: "https://saucenao.com",
-      headers: {HttpHeaders.hostHeader: host}));
+    ),
+  );
   List<int> results = [];
   late StreamController _streamController;
   late ObservableStream observableStream;
 
   Sauce() {
     _streamController = StreamController();
-    observableStream =
-        ObservableStream(_streamController.stream.asBroadcastStream());
+    observableStream = ObservableStream(
+      _streamController.stream.asBroadcastStream(),
+    );
   }
 
   void dispose() async {
@@ -57,55 +56,59 @@ class Sauce extends _$Sauce {
     return SauceState(notStart: true);
   }
 
-  Future findImage(
-      {BuildContext? context, String? path, bool retry = false}) async {
+  Future findImage({
+    BuildContext? context,
+    String? path,
+    bool retry = false,
+  }) async {
     if (Platform.isAndroid && context != null) {
       final skipAlert = Prefer.getBool("photo_picker_type_selected") ?? false;
       if (!skipAlert) {
         await showDialog(
-            context: context,
-            builder: (context) {
-              return AlertDialog(
-                contentPadding: EdgeInsets.only(top: 10.0, bottom: 10.0),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Observer(
-                      builder: (context) {
-                        return SwitchListTile(
-                          secondary: Icon(Icons.photo_album),
-                          onChanged: (bool value) async {
-                            await userSetting.setImagePickerType(value ? 1 : 0);
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              contentPadding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Observer(
+                    builder: (context) {
+                      return SwitchListTile(
+                        secondary: Icon(Icons.photo_album),
+                        onChanged: (bool value) async {
+                          await userSetting.setImagePickerType(value ? 1 : 0);
+                        },
+                        title: InkWell(
+                          child: Text(I18n.of(context).photo_picker),
+                          onTap: () {
+                            launchUrlString(
+                              "https://developer.android.com/training/data-storage/shared/photopicker",
+                            );
                           },
-                          title: InkWell(
-                            child: Text(I18n.of(context).photo_picker),
-                            onTap: () {
-                              launchUrlString(
-                                "https://developer.android.com/training/data-storage/shared/photopicker",
-                              );
-                            },
-                          ),
-                          subtitle:
-                              Text(I18n.of(context).photo_picker_subtitle),
-                          value: userSetting.imagePickerType == 1,
-                        );
-                      },
-                    ),
-                    Divider(),
-                    InkWell(
-                      child: Center(
-                          child: Padding(
+                        ),
+                        subtitle: Text(I18n.of(context).photo_picker_subtitle),
+                        value: userSetting.imagePickerType == 1,
+                      );
+                    },
+                  ),
+                  Divider(),
+                  InkWell(
+                    child: Center(
+                      child: Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: Text(I18n.of(context).ok),
-                      )),
-                      onTap: () {
-                        Navigator.of(context).pop();
-                      },
-                    )
-                  ],
-                ),
-              );
-            });
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
         await Prefer.setBool("photo_picker_type_selected", true);
       }
     }
@@ -124,7 +127,8 @@ class Sauce extends _$Sauce {
       Uint8List originImageBytes = await pickedFile.readAsBytes();
       var newImageBytes = compressImage(originImageBytes);
       LPrinter.d(
-          "Uncompressed image size: ${originImageBytes.length}, compressed image size: ${newImageBytes.length}");
+        "Uncompressed image size: ${originImageBytes.length}, compressed image size: ${newImageBytes.length}",
+      );
       path =
           "${(await getTemporaryDirectory()).path}/${DateTime.now().millisecondsSinceEpoch}.jpg";
       await File(path).writeAsBytes(newImageBytes);
@@ -135,18 +139,14 @@ class Sauce extends _$Sauce {
     ]);
     try {
       BotToast.showText(text: I18n.ofContext().uploading);
-      if (userSetting.disableBypassSni) {
-        dio.options.baseUrl = "https://$host";
-      } else {
-        dio.httpClientAdapter = await ApiClient.createCompatibleClient();
-      }
       Response response = await dio.post('/search.php', data: formData);
       BotToast.showText(text: I18n.ofContext().parsing);
       var document = parse(response.data);
       document.querySelectorAll('a').forEach((element) {
         var link = element.attributes['href'];
         if (link != null) {
-          bool need = link.startsWith('https://www.pixiv.net') &&
+          bool need =
+              link.startsWith('https://www.pixiv.net') &&
               link.contains('illust_id');
           if (need) {
             var result = Uri.parse(link).queryParameters['illust_id'];

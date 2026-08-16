@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:pixez/component/selectable_html.dart';
@@ -19,6 +19,7 @@ import 'package:pixez/page/user/user_store.dart';
 import 'package:pixez/page/user/users_page.dart';
 import 'package:pixez/supportor_plugin.dart';
 import 'package:pixez/component/painter_avatar.dart';
+import 'package:pixez/utils/haptic_util.dart';
 import 'package:share_plus/share_plus.dart';
 
 class IllustDetailContent extends StatefulWidget {
@@ -356,7 +357,8 @@ class _IllustDetailContentState extends State<IllustDetailContent> {
               final pos = box != null
                   ? box.localToGlobal(Offset.zero) & box.size
                   : null;
-              Share.share(selectionText, sharePositionOrigin: pos);
+              SharePlus.instance.share(
+                  ShareParams(text: selectionText, sharePositionOrigin: pos));
               return;
             }
             await SupportorPlugin.start(selectionText);
@@ -395,7 +397,7 @@ class _IllustDetailContentState extends State<IllustDetailContent> {
                       width: 4,
                     ),
                     Text(
-                      I18n.of(context).view_comment,
+                      '${I18n.of(context).view_comment}${data.commentCountText}',
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                   ]),
@@ -458,6 +460,7 @@ class _IllustDetailContentState extends State<IllustDetailContent> {
         break;
       case 2:
         {
+          HapticUtil.light();
           await Clipboard.setData(ClipboardData(text: f.name));
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             duration: Duration(seconds: 1),
@@ -470,6 +473,7 @@ class _IllustDetailContentState extends State<IllustDetailContent> {
   Widget buildRow(BuildContext context, Tags f) {
     return GestureDetector(
       onLongPress: () async {
+        HapticUtil.heavy();
         await _longPressTag(context, f);
       },
       onTap: () {

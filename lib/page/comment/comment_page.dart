@@ -18,7 +18,7 @@ import 'dart:io';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:easy_refresh/easy_refresh.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:pixez/component/comment_emoji_text.dart';
 import 'package:pixez/component/painter_avatar.dart';
@@ -33,6 +33,7 @@ import 'package:pixez/network/api_client.dart';
 import 'package:pixez/page/comment/comment_store.dart';
 import 'package:pixez/page/report/report_items_page.dart';
 import 'package:pixez/supportor_plugin.dart';
+import 'package:pixez/utils/haptic_util.dart';
 import 'package:share_plus/share_plus.dart';
 
 enum CommentArtWorkType { ILLUST, NOVEL }
@@ -63,6 +64,7 @@ class _CommentPageState extends State<CommentPage> {
   String? parentCommentName;
   late EasyRefreshController easyRefreshController;
   late CommentStore _store;
+  String _commentText = "";
 
   List<String> banList = [
     "bb8.news",
@@ -171,7 +173,7 @@ class _CommentPageState extends State<CommentPage> {
     return Container(
       child: Scaffold(
         appBar: AppBar(
-          title: Text(I18n.of(context).view_comment),
+          title: Text('${I18n.of(context).view_comment}'),
         ),
         body: SafeArea(
           child: Column(
@@ -399,9 +401,15 @@ class _CommentPageState extends State<CommentPage> {
                                 ),
                                 child: TextField(
                                   controller: _editController,
+                                  maxLength: 140,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _commentText = value;
+                                    });
+                                  },
                                   decoration: InputDecoration(
                                       labelText:
-                                          "${I18n.of(context).reply_to} ${parentCommentName == null ? "illust" : parentCommentName}",
+                                          "${I18n.of(context).reply_to} ${parentCommentName == null ? "illust" : parentCommentName} (${_commentText.length}/140)",
                                       suffixIcon: IconButton(
                                           icon: Icon(
                                             Icons.reply,
@@ -432,6 +440,7 @@ class _CommentPageState extends State<CommentPage> {
                                                           parentCommentId);
                                               }
                                               _editController.clear();
+                                              HapticUtil.medium();
                                               _store.fetch();
                                             } catch (e) {
                                               print(e);
@@ -556,7 +565,8 @@ class _CommentPageState extends State<CommentPage> {
               final pos = box != null
                   ? box.localToGlobal(Offset.zero) & box.size
                   : null;
-              Share.share(selectionText, sharePositionOrigin: pos);
+              SharePlus.instance.share(
+                  ShareParams(text: selectionText, sharePositionOrigin: pos));
               return;
             }
             await SupportorPlugin.start(selectionText);

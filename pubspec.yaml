@@ -13,92 +13,82 @@ publish_to: none
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 1.9.70+481
+version: 1.9.84+508
 
 environment:
-  sdk: ">=3.1.4"
+  sdk: ">=3.11.5"
 
 dependencies:
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  dio: ^5.8.0+1
-  crypto: ^3.0.6
-  path_provider: ^2.1.5
-  shared_preferences: ^2.5.1
-  share_plus: ^11.0.0
-  permission_handler: ^12.0.0+1
-  archive: ^4.0.2
-  url_launcher: ^6.3.1
+  dio: ^5.10.0
+  crypto: ^3.0.7
+  path_provider: ^2.1.6
+  shared_preferences: ^2.5.5
+  share_plus: ^13.3.0
+  permission_handler: ^13.0.1
+  archive: ^4.0.9
+  url_launcher: ^6.3.2
   bot_toast: ^4.1.3
-  package_info_plus: ^8.3.0
+  package_info_plus: ^10.2.0
   mobx: ^2.3.3+2
   flutter_mobx: ^2.2.1+1
-  in_app_purchase: ^3.2.1
-  flutter_widget_from_html: ^0.16.0
-  device_info_plus: ^11.3.0
-  flutter_displaymode: ^0.6.0
-  receive_sharing_intent:
-    git:
-      url: https://github.com/KasemJaffer/receive_sharing_intent
-      ref: master
+  in_app_purchase: ^3.3.0
+  flutter_widget_from_html: ^0.17.2
+  device_info_plus: ^13.2.0
+  flutter_displaymode: ^0.7.0
+  receive_sharing_intent: ^1.9.0 
   cached_network_image: ^3.4.1
   flutter_cache_manager: ^3.4.1
   waterfall_flow: ^3.1.1
-  animations: ^2.0.11
-  font_awesome_flutter: ^10.6.0
+  animations: ^2.1.0
+  font_awesome_flutter: ^11.0.0
   json_annotation: ^4.9.0
   badges: ^3.1.2
-  image_picker: ^1.1.2
+  image_picker: ^1.2.3
   intl: any
   quiver: ^3.2.2
-  flutter_inappwebview: ^6.1.5
-  dio_cache_interceptor: ^3.5.1
+  dio_cache_interceptor: ^4.0.6
   photo_view: ^0.15.0
-  image: ^4.5.3
-  easy_refresh: ^3.4.0
-  flutter_hooks: ^0.20.5
-  hooks_riverpod: ^2.5.1
-  sqflite: any
-  dynamic_color:
-    git:
-      url: https://github.com/hasali19/material-foundation-flutter-packages.git
-      path: packages/dynamic_color
-      ref: main
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
-  freezed_annotation: ^2.4.4
+  image: ^4.7.2
+  easy_refresh: ^3.5.1
+  sqflite: ^2.4.3
+  dynamic_color: ^1.9.0
   # Design Style
-  fluent_ui: ^4.10.0
+  fluent_ui: ^4.15.1
   # Desktop Support
   flutter_acrylic: ^1.1.4
-  window_manager: ^0.4.3
+  window_manager: ^0.5.1
   rhttp:
-    git:
-      url: https://github.com/Tienisto/rhttp.git
-      path: rhttp
-      # 固定到修复 cargokit 与 Flutter 3.32+ 兼容性的提交：
-      # 旧版 cargokit 按 "FlutterPlugin" 判断插件类，Flutter 3.32 改为
-      # com.flutter.gradle.FlutterPlugin 后原生库无法构建（librhttp.so 缺失）
-      ref: c326cde48fdb3a81c723bb33304d31e279008296
-  dio_compatibility_layer: ^0.1.0
+    path: ./plugins/rhttp/rhttp
+  dio_compatibility_layer: ^0.1.1
   flutter_cache_manager_dio: ^4.0.0
-  file_picker: ^9.0.0
+  file_picker: ^12.0.0
+  flutter_riverpod: ^3.0.3
+  riverpod_annotation: ^4.0.0
+  freezed_annotation: ^3.1.0
+  hooks_riverpod: ^3.0.3
+  flutter_hooks: ^0.21.3+1
+  webview_flutter: ^4.14.1
+  # sqlite3: 3.1.6
+  sqflite_common_ffi: ^2.4.2
+  material_ui: ^1.0.0
+  cupertino_ui: ^1.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  build_runner: ^2.4.10
   mobx_codegen: ^2.6.1
   json_serializable: ^6.8.0
-  analyzer: ^6.4.1
-  sqflite_common_ffi: any
-  msix: ^3.16.7
-  riverpod_generator: ^2.4.0
-  custom_lint: ^0.6.4
-  riverpod_lint: ^2.3.10
-  freezed: ^2.5.2
+  msix: ^3.16.9
+  analyzer: ^8.4.0
+  build_runner: ^2.12.0
+  riverpod_generator: ^4.0.0+1
+  custom_lint: ^0.8.1
+  riverpod_lint: ^3.1.0
+  freezed: 3.2.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -108,6 +98,8 @@ flutter:
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
+  config:
+    enable-lldb-debugging: false
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
@@ -155,3 +147,12 @@ msix_config:
   install_certificate: false
   store: false
   publisher: CN=Notsfsssf, C=CN
+
+dependency_overrides:
+  wakelock_plus:
+    path: ./plugins/wakelock_plus_stub
+
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlite3

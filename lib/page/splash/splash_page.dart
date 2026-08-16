@@ -14,7 +14,7 @@
  *
  */
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:mobx/mobx.dart';
 import 'package:pixez/er/leader.dart';
@@ -36,10 +36,13 @@ class _SplashPageState extends State<SplashPage>
   @override
   void initState() {
     if (accountStore.now != null)
-      lightingStore =
-          LightingStore(ApiSource(futureGet: () => apiClient.getRecommend()));
-    controller =
-        AnimationController(duration: Duration(seconds: 2), vsync: this);
+      lightingStore = LightingStore(
+        ApiSource(futureGet: () => apiClient.getRecommend()),
+      );
+    controller = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    );
     initMethod();
     super.initState();
     controller.forward();
@@ -50,10 +53,10 @@ class _SplashPageState extends State<SplashPage>
   bool isPush = false;
 
   initMethod() {
-    if (!userSetting.disableBypassSni) {
+    if (userSetting.needsCompatibleDnsFetch) {
       //ugly,consider refactor with other state management
-      userDisposer = reaction((_) => userSetting.disableBypassSni, (_) {
-        if (userSetting.disableBypassSni) {
+      userDisposer = reaction((_) => userSetting.needsCompatibleDnsFetch, (_) {
+        if (!userSetting.needsCompatibleDnsFetch) {
           apiClient.httpClient.options.baseUrl =
               'https://${ApiClient.BASE_API_URL_HOST}';
           oAuthClient.httpClient.options.baseUrl =
@@ -94,27 +97,22 @@ class _SplashPageState extends State<SplashPage>
     final brightness =
         SchedulerBinding.instance.platformDispatcher.platformBrightness;
     return Scaffold(
-      backgroundColor:
-          brightness == Brightness.dark ? Colors.black : Colors.white,
+      backgroundColor: brightness == Brightness.dark
+          ? Colors.black
+          : Colors.white,
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.max,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           RotationTransition(
-              child: Image.asset(
-                'assets/images/icon.png',
-                height: 80,
-                width: 80,
-              ),
-              alignment: Alignment.center,
-              turns: controller),
+            child: Image.asset('assets/images/icon.png', height: 80, width: 80),
+            alignment: Alignment.center,
+            turns: controller,
+          ),
           Container(
-            child: Text(
-              splashStore.helloWord,
-              textAlign: TextAlign.center,
-            ),
-          )
+            child: Text(splashStore.helloWord, textAlign: TextAlign.center),
+          ),
         ],
       ),
     );
