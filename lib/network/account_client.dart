@@ -99,8 +99,11 @@ class AccountClient {
 
   Future<Dio> createDioClient() async {
     String time = getIsoDate();
+    final String baseUrl = userSetting.disableBypassSni
+        ? 'https://${BASE_API_URL_HOST}'
+        : 'https://pixiv.me';
     final dio = Dio(BaseOptions(
-        baseUrl: 'https://${BASE_API_URL_HOST}',
+        baseUrl: baseUrl,
         headers: {
           "X-Client-Time": time,
           "X-Client-Hash": getHash(time + hashSalt),
@@ -121,11 +124,14 @@ class AccountClient {
             ? null
             : r.ClientSettings(
                 tlsSettings:
-                    r.TlsSettings(verifyCertificates: false, sni: false),
+                    r.TlsSettings(verifyCertificates: true, sni: true),
                 dnsSettings: r.DnsSettings.dynamic(
                   resolver: (host) async {
-                    final ip = Hoster.api();
-                    return [ip];
+                    if (host.endsWith("pixiv.net") || host == "pixiv.me") {
+                      return [Hoster.pixiv()];
+                    }
+                    return await InternetAddress.lookup(host)
+                        .then((value) => value.map((e) => e.address).toList());
                   },
                 ),
               ));

@@ -58,12 +58,15 @@ class OAuthClient {
         settings: userSetting.disableBypassSni
             ? null
             : r.ClientSettings(
-                tlsSettings: r.TlsSettings(
-                    verifyCertificates: false, sni: false),
+                tlsSettings:
+                    r.TlsSettings(verifyCertificates: true, sni: true),
                 dnsSettings: r.DnsSettings.dynamic(
                   resolver: (host) async {
-                    final ip = Hoster.oauth();
-                    return [ip];
+                    if (host.endsWith("pixiv.net") || host == "pixiv.me") {
+                      return [Hoster.pixiv()];
+                    }
+                    return await InternetAddress.lookup(host)
+                        .then((value) => value.map((e) => e.address).toList());
                   },
                 ),
               ));
@@ -83,8 +86,11 @@ class OAuthClient {
 
   OAuthClient() {
     String time = getIsoDate();
+    final String baseUrl = userSetting.disableBypassSni
+        ? 'https://${BASE_OAUTH_URL_HOST}'
+        : 'https://pixiv.me';
     httpClient = Dio(BaseOptions(
-        baseUrl: 'https://${BASE_OAUTH_URL_HOST}',
+        baseUrl: baseUrl,
         headers: {
           "X-Client-Time": time,
           "X-Client-Hash": getHash(time + hashSalt),
@@ -93,6 +99,7 @@ class OAuthClient {
           "App-OS": "Android",
           "App-OS-Version": "Android 6.0",
           "App-Version": "5.0.166",
+          HttpHeaders.hostHeader: BASE_OAUTH_URL_HOST,
         },
         contentType: Headers.formUrlEncodedContentType));
     if (kDebugMode) {

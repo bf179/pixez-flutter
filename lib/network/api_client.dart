@@ -74,11 +74,14 @@ class ApiClient {
             ? null
             : r.ClientSettings(
                 tlsSettings:
-                    r.TlsSettings(verifyCertificates: false, sni: false),
+                    r.TlsSettings(verifyCertificates: true, sni: true),
                 dnsSettings: r.DnsSettings.dynamic(
                   resolver: (host) async {
-                    final ip = Hoster.api();
-                    return [ip];
+                    if (host.endsWith("pixiv.net") || host == "pixiv.me") {
+                      return [Hoster.pixiv()];
+                    }
+                    return await InternetAddress.lookup(host)
+                        .then((value) => value.map((e) => e.address).toList());
                   },
                 ),
               ));
@@ -120,8 +123,11 @@ class ApiClient {
 
   ApiClient({bool isBookmark = false}) {
     String time = getIsoDate();
+    final String baseUrl = userSetting.disableBypassSni
+        ? 'https://${BASE_API_URL_HOST}'
+        : 'https://pixiv.me';
     httpClient =
-        Dio(BaseOptions(baseUrl: 'https://${BASE_API_URL_HOST}', headers: {
+        Dio(BaseOptions(baseUrl: baseUrl, headers: {
       "X-Client-Time": time,
       "X-Client-Hash": getHash(time + hashSalt),
       "User-Agent": "PixivAndroidApp/5.0.155 (Android 10.0; Pixel C)",
