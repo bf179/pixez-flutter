@@ -16,7 +16,6 @@
 
 import 'dart:io';
 
-import 'package:bot_toast/bot_toast.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:pixez/component/new_version_chip.dart';
@@ -36,7 +35,7 @@ import 'package:pixez/page/board/board_page.dart';
 import 'package:pixez/page/book/tag/book_tag_page.dart';
 import 'package:pixez/page/hello/recom/recom_manga_page.dart';
 import 'package:pixez/page/hello/setting/data_export_page.dart';
-import 'package:pixez/page/hello/setting/hidden_artist_page.dart';
+import 'package:pixez/page/hello/setting/discovery_setting_page.dart';
 import 'package:pixez/page/hello/setting/setting_quality_page.dart';
 import 'package:pixez/page/history/history_page.dart';
 import 'package:pixez/page/login/login_page.dart';
@@ -252,55 +251,14 @@ class _SettingPageState extends State<SettingPage> {
                 ),
                 Divider(),
                 if (Platform.isAndroid)
-                  Observer(builder: (context) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 4),
-                          child: Text(
-                            '发现过滤（仅安卓）',
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                        ),
-                        SwitchListTile(
-                          secondary: const Icon(Icons.person_off_outlined),
-                          title: const Text('隐藏已关注画师的作品'),
-                          subtitle: const Text('在推荐、搜索等界面隐藏已关注画师及隐藏列表内画师的作品'),
-                          value: discoveryStore.hideFollowedArtists,
-                          onChanged: (v) => discoveryStore.setHideFollowedArtists(v),
-                        ),
-                        SwitchListTile(
-                          secondary: const Icon(Icons.favorite_border),
-                          title: const Text('隐藏已收藏的作品'),
-                          subtitle: const Text('在推荐、搜索等界面隐藏已经收藏过的作品'),
-                          value: discoveryStore.hideFavoritedWorks,
-                          onChanged: (v) => discoveryStore.setHideFavoritedWorks(v),
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.format_list_numbered),
-                          title: const Text('隐藏画师列表管理'),
-                          subtitle: const Text('导入 / 导出 / 搜索 / 编辑 / 清空（uid 自动去重）'),
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => HiddenArtistPage())),
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.sync),
-                          title: const Text('同步关注列表缓存'),
-                          subtitle: Text(
-                              discoveryStore.syncing
-                                  ? '同步中…'
-                                  : '当前缓存 ${discoveryStore.followedUids.length} 位关注画师，关注/取关会即时更新'),
-                          onTap: () async {
-                            BotToast.showLoading();
-                            final n = await discoveryStore.syncFollowed();
-                            BotToast.closeAllLoading();
-                            BotToast.showText(text: n > 0 ? '已同步 $n 位关注画师' : '同步完成');
-                          },
-                        ),
-                      ],
-                    );
-                  }),
+                  ListTile(
+                    leading: const Icon(Icons.tune),
+                    title: const Text('发现过滤'),
+                    subtitle: const Text(
+                        '隐藏已关注 / 已收藏作品、隐藏画师列表、多账号设置'),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const DiscoverySettingPage())),
+                  ),
                 Divider(),
                 Column(
                   children: <Widget>[

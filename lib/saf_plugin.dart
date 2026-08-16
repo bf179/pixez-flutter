@@ -21,7 +21,7 @@ class SAFPlugin {
     return platform.invokeMethod("writeUri", {'uri': uri, 'data': data});
   }
 
-  static Future<Uint8List?> openFile() async {
+  static Future<Uint8List?> openFile({String type = "*/*"}) async {
     if (Platform.isIOS) {
       try {
         final result = await FilePicker.pickFile();
@@ -30,7 +30,7 @@ class SAFPlugin {
       return null;
     }
     return platform.invokeMethod<Uint8List>("openFile", {
-      'type': "application/json",
+      'type': type,
     });
   }
 }

@@ -13,8 +13,13 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  *
  */
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:mobx/mobx.dart';
+import 'package:path/path.dart';
 import 'package:pixez/er/prefer.dart';
 import 'package:pixez/main.dart';
 import 'package:pixez/models/followed_artist.dart';
@@ -22,11 +27,22 @@ import 'package:pixez/models/hidden_artist.dart';
 import 'package:pixez/models/user_detail.dart';
 import 'package:pixez/models/user_preview.dart';
 import 'package:pixez/network/api_client.dart';
+import 'package:pixez/saf_plugin.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+/// 隐藏画师的详情缓存（头像 + 作品预览，运行时拉取，不落库）
+class HiddenArtistDetail {
+  final String? avatarUrl;
+  final List<String> previewUrls;
+
+  HiddenArtistDetail({this.avatarUrl, this.previewUrls = const []});
+}
 
 /// 发现过滤相关：
-/// 1. 隐藏已关注画师的作品（关注列表缓存本地数据库，关注/取关即时更新）
+/// 1. 隐藏已关注画师的作品（关注列表按账号缓存本地数据库，关注/取关即时更新）
 /// 2. 隐藏已收藏的作品
-/// 3. 隐藏画师列表（uid 去重，支持导入导出搜索清空）
+/// 3. 隐藏画师列表（uid 去重，支持导入导出搜索清空，对所有账号生效）
+/// 4. 多账号：关注列表按账号隔离；"隐藏公共关注库"开启后所有账号的关注一并隐藏
 ///
 /// 说明：不使用 mobx 代码生成，观察能力全部由运行时 Observable 集合
 /// （ObservableMap / ObservableSet / ObservableList）提供，开关状态也存
@@ -35,13 +51,17 @@ class DiscoveryStore {
   static const String HIDE_FOLLOWED_KEY = 'hide_followed_artists';
   static const String HIDE_FAVORITED_KEY = 'hide_favorited_works';
 
+  /// 隐藏公共关注库：开启后所有登录账号的关注画师都会被隐藏；
+  /// 关闭则仅隐藏当前账号的关注画师（其他账号的关注不受影响）
+  static const String HIDE_PUBLIC_FOLLOWED_KEY = 'hide_public_followed';
+
   final FollowedArtistProvider followedProvider = FollowedArtistProvider();
   final HiddenArtistProvider hiddenProvider = HiddenArtistProvider();
 
   /// 开关状态（可观察，同步持久化到 SharedPreferences）
   final ObservableMap<String, bool> _flags = ObservableMap();
 
-  /// 已关注画师 uid（缓存，即时更新）
+  /// 已关注画师 uid（按当前账号 + 公共关注库开关过滤后的缓存）
   final ObservableSet<String> followedUids = ObservableSet();
 
   /// 隐藏列表画师 uid（由 hiddenArtists 派生，便于快速查找）
@@ -50,7 +70,13 @@ class DiscoveryStore {
   /// 隐藏画师列表（完整信息）
   final ObservableList<HiddenArtistPersist> hiddenArtists = ObservableList();
 
+  /// 隐藏画师详情缓存（头像 + 作品预览）
+  final ObservableMap<String, HiddenArtistDetail> hiddenArtistDetails =
+      ObservableMap();
+
   bool _syncing = false;
+
+  Timer? _syncTimer;
 
   /// 当前打开的详情页数量（嵌套详情页计数）。
   /// 详情页打开期间，列表的发现过滤暂停执行，避免正在查看的作品被
@@ -75,20 +101,47 @@ class DiscoveryStore {
 
   bool get hideFavoritedWorks => _flags[HIDE_FAVORITED_KEY] ?? false;
 
+  bool get hidePublicFollowed => _flags[HIDE_PUBLIC_FOLLOWED_KEY] ?? false;
+
+  String? get _currentAccountId => accountStore.now?.userId;
+
   Future<void> init() async {
     await Prefer.init();
     _flags[HIDE_FOLLOWED_KEY] = Prefer.getBool(HIDE_FOLLOWED_KEY) ?? false;
     _flags[HIDE_FAVORITED_KEY] = Prefer.getBool(HIDE_FAVORITED_KEY) ?? false;
+    _flags[HIDE_PUBLIC_FOLLOWED_KEY] =
+        Prefer.getBool(HIDE_PUBLIC_FOLLOWED_KEY) ?? false;
     await loadFollowed();
     await loadHidden();
+    // 多账号：切换账号时重新按当前账号加载关注缓存
+    reaction((_) => accountStore.now, (_) => loadFollowed());
+    startPeriodicSync();
+  }
+
+  /// 后台定时同步关注列表（每 6 小时一次），保证缓存与服务器一致
+  void startPeriodicSync() {
+    _syncTimer?.cancel();
+    _syncTimer = Timer.periodic(const Duration(hours: 6), (_) {
+      if (hideFollowedArtists || hidePublicFollowed) {
+        syncFollowed();
+      }
+    });
   }
 
   Future<void> loadFollowed() async {
     await followedProvider.open();
     final list = await followedProvider.getAll();
-    followedUids
-      ..clear()
-      ..addAll(list.map((e) => e.userId));
+    final currentAccountId = _currentAccountId;
+    followedUids.clear();
+    for (final e in list) {
+      if (hidePublicFollowed) {
+        // 公共关注库：所有账号的关注都隐藏
+        followedUids.add(e.userId);
+      } else if (e.accountId == null || e.accountId == currentAccountId) {
+        // 仅当前账号（accountId 为 null 的旧数据视为当前账号）
+        followedUids.add(e.userId);
+      }
+    }
   }
 
   Future<void> loadHidden() async {
@@ -108,6 +161,8 @@ class DiscoveryStore {
     if (value) {
       // 开启时懒同步一次，保证缓存与服务器一致
       await syncFollowed();
+    } else {
+      await loadFollowed();
     }
   }
 
@@ -116,42 +171,68 @@ class DiscoveryStore {
     await Prefer.setBool(HIDE_FAVORITED_KEY, value);
   }
 
-  // ---------- 关注列表缓存（即时更新） ----------
+  /// 隐藏公共关注库：开启后所有账号的关注都被隐藏，关闭则仅隐藏当前账号的关注
+  Future<void> setHidePublicFollowed(bool value) async {
+    _flags[HIDE_PUBLIC_FOLLOWED_KEY] = value;
+    await Prefer.setBool(HIDE_PUBLIC_FOLLOWED_KEY, value);
+    if (value) {
+      await syncFollowed();
+    } else {
+      await loadFollowed();
+    }
+  }
 
-  /// 关注了新画师：写入缓存，避免下次过滤重新拉全量列表
+  // ---------- 关注列表缓存（即时更新，按账号隔离） ----------
+
+  /// 关注了新画师：写入当前账号缓存
   Future<void> onFollow(int userId, String name) async {
     final uid = userId.toString();
+    final accountId = _currentAccountId;
     await followedProvider.open();
-    final exist = await followedProvider.getByUserId(uid);
+    var exist = await followedProvider.getByUserId(uid, accountId);
+    if (exist == null && accountId != null) {
+      // 采纳旧数据（account_id 为 null 的公共记录）归属到当前账号
+      exist = await followedProvider.getByUserId(uid, null);
+      if (exist != null) {
+        exist.accountId = accountId;
+        exist.name = name.isEmpty ? exist.name : name;
+        await followedProvider.update(exist);
+      }
+    }
     if (exist != null) {
       exist.name = name.isEmpty ? exist.name : name;
       await followedProvider.update(exist);
     } else {
-      await followedProvider
-          .insert(FollowedArtistPersist(userId: uid, name: name));
+      await followedProvider.insert(
+          FollowedArtistPersist(userId: uid, name: name, accountId: accountId));
     }
     followedUids.add(uid);
   }
 
-  /// 取消关注了画师：从缓存移除
+  /// 取消关注了画师：从当前账号缓存移除（含旧数据公共记录）
   Future<void> onUnfollow(int userId) async {
     final uid = userId.toString();
+    final accountId = _currentAccountId;
     await followedProvider.open();
-    final exist = await followedProvider.getByUserId(uid);
+    var exist = await followedProvider.getByUserId(uid, accountId);
+    if (exist == null && accountId != null) {
+      exist = await followedProvider.getByUserId(uid, null);
+    }
     if (exist != null) {
       await followedProvider.delete(exist.id!);
     }
     followedUids.remove(uid);
   }
 
-  /// 全量同步关注列表（public + private），分页拉取，返回同步数量
-  /// 每页请求之间加入延迟限流，避免触发服务器 429
+  /// 全量同步当前账号关注列表（public + private），分页拉取，返回同步数量。
+  /// 每页请求之间间隔 2000ms 限流，避免触发服务器 429。
   Future<int> syncFollowed() async {
     if (_syncing) return 0;
     _syncing = true;
     try {
       if (accountStore.now == null) return 0;
-      final userId = int.parse(accountStore.now!.userId);
+      final accountId = accountStore.now!.userId;
+      final userId = int.parse(accountId);
       final collected = <String, String>{};
       for (final restrict in ['public', 'private']) {
         String? nextUrl = null;
@@ -167,20 +248,22 @@ class DiscoveryStore {
             collected[u.user.id.toString()] = u.user.name;
           }
           nextUrl = data.next_url;
-          // 请求间隔，避免频率过高被服务器限流（429）
-          await Future.delayed(const Duration(milliseconds: 300));
+          // 请求间隔 2 秒，避免频率过高被服务器限流（429）
+          await Future.delayed(const Duration(milliseconds: 2000));
         } while (nextUrl != null && nextUrl.isNotEmpty);
         // 切换 restrict 时也稍作停顿
-        await Future.delayed(const Duration(milliseconds: 300));
+        await Future.delayed(const Duration(milliseconds: 2000));
       }
       if (collected.isEmpty) return 0;
       await followedProvider.open();
+      // 先清空当前账号旧缓存（含迁移前的公共记录），避免残留已取关的画师
+      await followedProvider.deleteByAccount(accountId);
+      await followedProvider.deleteByAccount(null);
       await followedProvider.insertAll(collected.entries
-          .map((e) => FollowedArtistPersist(userId: e.key, name: e.value))
+          .map((e) => FollowedArtistPersist(
+              userId: e.key, name: e.value, accountId: accountId))
           .toList());
-      followedUids
-        ..clear()
-        ..addAll(collected.keys);
+      await loadFollowed();
       return collected.length;
     } catch (e) {
       return 0;
@@ -189,7 +272,7 @@ class DiscoveryStore {
     }
   }
 
-  // ---------- 隐藏画师列表 ----------
+  // ---------- 隐藏画师列表（对所有账号生效） ----------
 
   /// 新增/更新隐藏画师（按 uid 去重）
   Future<void> addHidden(String uid, String name, {String comment = ''}) async {
@@ -213,15 +296,24 @@ class DiscoveryStore {
   }
 
   Future<void> removeHidden(int id) async {
+    String? uid;
+    for (final e in hiddenArtists) {
+      if (e.id == id) {
+        uid = e.userId;
+        break;
+      }
+    }
     await hiddenProvider.open();
     await hiddenProvider.delete(id);
     await loadHidden();
+    if (uid != null) hiddenArtistDetails.remove(uid);
   }
 
   Future<void> clearHidden() async {
     await hiddenProvider.open();
     await hiddenProvider.deleteAll();
     await loadHidden();
+    hiddenArtistDetails.clear();
   }
 
   /// 从文本导入（一行一个 uid），自动去重，导入后异步补充画师名
@@ -249,6 +341,41 @@ class DiscoveryStore {
     return added;
   }
 
+  /// 从 sqlite 文件导入隐藏画师列表（合并，uid 去重）
+  Future<int> importHiddenFromSqlite(Uint8List bytes) async {
+    final dbPath = join(await getDatabasesPath(), 'import_hidden_tmp.db');
+    await File(dbPath).writeAsBytes(bytes);
+    final tmp = await openDatabase(dbPath, readOnly: true);
+    final rows = await tmp.query(tableHiddenArtist);
+    await tmp.close();
+    try {
+      await File(dbPath).delete();
+    } catch (e) {}
+    var added = 0;
+    final uids = <String>{};
+    await hiddenProvider.open();
+    for (final row in rows) {
+      final uid = row[hiddenColumnUserId]?.toString();
+      if (uid == null || int.tryParse(uid) == null) continue;
+      if (uids.contains(uid)) continue;
+      uids.add(uid);
+      final exist = await hiddenProvider.getByUserId(uid);
+      if (exist == null) {
+        await hiddenProvider.insert(HiddenArtistPersist(
+          userId: uid,
+          name: row[hiddenColumnName]?.toString() ?? uid,
+          comment: row[hiddenColumnComment]?.toString() ?? '',
+        ));
+        added++;
+      }
+    }
+    await loadHidden();
+    if (added > 0) {
+      enrichNames(uids);
+    }
+    return added;
+  }
+
   /// 后台补充隐藏画师名称（失败忽略）
   Future<void> enrichNames(Iterable<String> uids) async {
     for (final uid in uids) {
@@ -264,5 +391,88 @@ class DiscoveryStore {
       await Future.delayed(const Duration(milliseconds: 200));
     }
     await loadHidden();
+  }
+
+  /// 导出关注列表数据库文件（sqlite）
+  Future<bool> exportFollowedToSqlite() async {
+    return _exportDb('followedartist.db', 'followed_artists');
+  }
+
+  /// 导出隐藏画师列表数据库文件（sqlite）
+  Future<bool> exportHiddenToSqlite() async {
+    return _exportDb('hiddenartist.db', 'hidden_artists');
+  }
+
+  Future<bool> _exportDb(String dbFile, String prefix) async {
+    try {
+      final dbPath = join(await getDatabasesPath(), dbFile);
+      await followedProvider.open();
+      await hiddenProvider.open();
+      // 先做 WAL checkpoint，确保主库文件包含全部最新数据
+      final db = dbFile == 'followedartist.db'
+          ? followedProvider.db
+          : hiddenProvider.db;
+      try {
+        await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
+      } catch (e) {}
+      // 关闭数据库连接以便安全读取文件（导出后重新打开）
+      if (dbFile == 'followedartist.db') {
+        await followedProvider.close();
+      } else {
+        await hiddenProvider.close();
+      }
+      final bytes = await File(dbPath).readAsBytes();
+      if (dbFile == 'followedartist.db') {
+        await followedProvider.open();
+      } else {
+        await hiddenProvider.open();
+      }
+      final uri = await SAFPlugin.createFile(
+          '${prefix}_${DateTime.now().millisecondsSinceEpoch}.db',
+          'application/octet-stream');
+      if (uri == null) return false;
+      await SAFPlugin.writeUri(uri, bytes);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ---------- 隐藏画师详情缓存（头像 + 作品预览） ----------
+
+  final Set<String> _loadingDetails = {};
+
+  /// 异步拉取隐藏画师的头像与作品预览并缓存（失败静默）
+  Future<void> loadHiddenDetail(String uid) async {
+    if (hiddenArtistDetails.containsKey(uid)) return;
+    if (_loadingDetails.contains(uid)) return;
+    _loadingDetails.add(uid);
+    try {
+      final id = int.tryParse(uid);
+      if (id == null) return;
+      String? avatar;
+      final userResp = await apiClient.getUser(id);
+      final detail = UserDetail.fromJson(userResp.data);
+      avatar = detail.user.profileImageUrls.medium;
+
+      List<String> previews = [];
+      try {
+        final illustResp = await apiClient.getUserIllusts(id, 'illust');
+        final decoded = jsonDecode(illustResp.data);
+        final list = (decoded['illusts'] as List? ?? []);
+        previews = list
+            .take(3)
+            .map((e) => (e['image_urls']?['square_medium'] ?? '') as String)
+            .where((u) => u.isNotEmpty)
+            .toList();
+      } catch (e) {}
+
+      hiddenArtistDetails[uid] =
+          HiddenArtistDetail(avatarUrl: avatar, previewUrls: previews);
+    } catch (e) {
+      // 拉取失败留空，不缓存，允许下次重试
+    } finally {
+      _loadingDetails.remove(uid);
+    }
   }
 }

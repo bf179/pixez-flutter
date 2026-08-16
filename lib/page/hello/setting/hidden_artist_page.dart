@@ -18,12 +18,14 @@ import 'dart:convert';
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:pixez/component/pixiv_image.dart';
 import 'package:pixez/main.dart';
 import 'package:pixez/models/hidden_artist.dart';
 import 'package:pixez/saf_plugin.dart';
 
 /// 隐藏画师列表管理页（仅安卓）
-/// 支持：搜索（uid/画师名/备注）、新增、编辑、删除、txt 导入导出、一键清空
+/// 支持：搜索（uid/画师名/备注）、新增（批量，每行一个 uid）、编辑、删除、
+/// txt/sqlite 导入导出、一键清空；列表展示头像、名称与作品预览
 class HiddenArtistPage extends StatefulWidget {
   @override
   _HiddenArtistPageState createState() => _HiddenArtistPageState();
@@ -57,8 +59,10 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
         .toList();
   }
 
-  Future<void> _import() async {
-    final data = await SAFPlugin.openFile();
+  // ---------- 导入 / 导出 ----------
+
+  Future<void> _importTxt() async {
+    final data = await SAFPlugin.openFile(type: 'text/plain');
     if (data == null) return;
     final text = utf8.decode(data, allowMalformed: true);
     BotToast.showLoading();
@@ -67,7 +71,16 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
     BotToast.showText(text: n > 0 ? '导入完成，新增 $n 位画师' : '没有可导入的新画师（uid 已去重）');
   }
 
-  Future<void> _export() async {
+  Future<void> _importSqlite() async {
+    final data = await SAFPlugin.openFile(type: 'application/octet-stream');
+    if (data == null) return;
+    BotToast.showLoading();
+    final n = await discoveryStore.importHiddenFromSqlite(data);
+    BotToast.closeAllLoading();
+    BotToast.showText(text: n > 0 ? '导入完成，新增 $n 位画师' : '没有可导入的新画师（uid 已去重）');
+  }
+
+  Future<void> _exportTxt() async {
     final list = discoveryStore.hiddenArtists;
     if (list.isEmpty) {
       BotToast.showText(text: '列表为空');
@@ -83,20 +96,27 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
     }
   }
 
+  Future<void> _exportSqlite() async {
+    BotToast.showLoading();
+    final ok = await discoveryStore.exportHiddenToSqlite();
+    BotToast.closeAllLoading();
+    BotToast.showText(text: ok ? '已导出 sqlite 数据库' : '导出失败');
+  }
+
   Future<void> _clearAll() async {
     final result = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('清空隐藏画师列表'),
+        title: const Text('清空隐藏画师列表'),
         content: Text('确定要清空全部 ${discoveryStore.hiddenArtists.length} 位隐藏画师吗？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('取消'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'OK'),
-            child: Text('清空'),
+            child: const Text('清空'),
           ),
         ],
       ),
@@ -112,12 +132,12 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('批量添加隐藏画师'),
+        title: const Text('批量添加隐藏画师'),
         content: TextField(
           controller: controller,
           maxLines: 6,
           autofocus: true,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             hintText: '每行一个画师 uid\n支持一次粘贴多个',
             border: OutlineInputBorder(),
           ),
@@ -125,11 +145,11 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('取消'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            child: Text('添加'),
+            child: const Text('添加'),
           ),
         ],
       ),
@@ -148,7 +168,7 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('编辑隐藏画师'),
+        title: const Text('编辑隐藏画师'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -158,24 +178,26 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
             ),
             TextField(
               controller: commentController,
-              decoration: InputDecoration(labelText: '备注'),
+              decoration: const InputDecoration(labelText: '备注'),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('取消'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('保存'),
+            child: const Text('保存'),
           ),
         ],
       ),
     );
     if (result == true) {
-      e.name = nameController.text.trim().isEmpty ? e.userId : nameController.text.trim();
+      e.name = nameController.text.trim().isEmpty
+          ? e.userId
+          : nameController.text.trim();
       e.comment = commentController.text.trim();
       await discoveryStore.updateHidden(e);
       BotToast.showText(text: '已保存');
@@ -186,16 +208,16 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
     final result = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('删除'),
+        title: const Text('删除'),
         content: Text('删除隐藏画师 ${e.name}（uid: ${e.userId}）？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('取消'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'OK'),
-            child: Text('删除'),
+            child: const Text('删除'),
           ),
         ],
       ),
@@ -205,25 +227,93 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
     }
   }
 
+  Widget _buildPreviewRow(HiddenArtistPersist e) {
+    return Observer(builder: (_) {
+      final detail = discoveryStore.hiddenArtistDetails[e.userId];
+      final previews = detail?.previewUrls ?? const [];
+      return Row(
+        children: [
+          for (var i = 0; i < 3; i++)
+            Expanded(
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: i < previews.length
+                    ? PixivImage(
+                        previews[i],
+                        fit: BoxFit.cover,
+                        enableMemoryCache: false,
+                      )
+                    : Container(
+                        color:
+                            Theme.of(context).colorScheme.surfaceContainerHighest,
+                      ),
+              ),
+            ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildAvatar(HiddenArtistPersist e) {
+    return Observer(builder: (_) {
+      final avatar = discoveryStore.hiddenArtistDetails[e.userId]?.avatarUrl;
+      return ClipOval(
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: avatar != null
+              ? PixivImage(
+                  avatar,
+                  fit: BoxFit.cover,
+                  enableMemoryCache: false,
+                )
+              : Container(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  alignment: Alignment.center,
+                  child: Text(
+                    String.fromCharCode(
+                        (e.name.isNotEmpty ? e.name : e.userId).runes.first),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+        ),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('隐藏画师列表'),
+        title: const Text('隐藏画师列表'),
         actions: [
-          IconButton(
-            tooltip: '导入 txt（一行一个 uid）',
-            icon: Icon(Icons.file_open_outlined),
-            onPressed: _import,
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.file_upload_outlined),
+            tooltip: '导入',
+            onSelected: (v) {
+              if (v == 'txt') _importTxt();
+              if (v == 'sqlite') _importSqlite();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'txt', child: Text('导入 txt（每行一个 uid）')),
+              PopupMenuItem(value: 'sqlite', child: Text('导入 sqlite 数据库')),
+            ],
           ),
-          IconButton(
-            tooltip: '导出 txt',
-            icon: Icon(Icons.file_download_outlined),
-            onPressed: _export,
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: '导出',
+            onSelected: (v) {
+              if (v == 'txt') _exportTxt();
+              if (v == 'sqlite') _exportSqlite();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'txt', child: Text('导出 txt')),
+              PopupMenuItem(value: 'sqlite', child: Text('导出 sqlite 数据库')),
+            ],
           ),
           IconButton(
             tooltip: '一键清空',
-            icon: Icon(Icons.delete_sweep_outlined),
+            icon: const Icon(Icons.delete_sweep_outlined),
             onPressed: _clearAll,
           ),
         ],
@@ -235,7 +325,7 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search),
                 hintText: '搜索 uid / 画师名 / 备注',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -253,44 +343,57 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.person_off_outlined, size: 48, color: Theme.of(context).disabledColor),
-                      SizedBox(height: 8),
-                      Text(_keyword.isEmpty ? '暂无隐藏画师，点击右下角添加' : '没有匹配的结果'),
+                      Icon(Icons.person_off_outlined,
+                          size: 48, color: Theme.of(context).disabledColor),
+                      const SizedBox(height: 8),
+                      Text(_keyword.isEmpty
+                          ? '暂无隐藏画师，点击右下角添加'
+                          : '没有匹配的结果'),
                     ],
                   ),
                 );
               }
               return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 itemCount: list.length,
                 itemBuilder: (context, index) {
                   final e = list[index];
-                  return ListTile(
-                    leading: CircleAvatar(
-                      radius: 20,
-                      child: Text(
-                        String.fromCharCode(
-                            (e.name.isNotEmpty ? e.name : e.userId).runes.first),
-                        style: TextStyle(fontSize: 14),
-                      ),
-                    ),
-                    title: Text(e.name.isEmpty ? e.userId : e.name),
-                    subtitle: Text(
-                      e.comment.isEmpty
-                          ? 'uid: ${e.userId}'
-                          : '${e.comment} · uid: ${e.userId}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  // 按需异步拉取头像与作品预览（内部去重）
+                  discoveryStore.loadHiddenDetail(e.userId);
+                  return Card(
+                    clipBehavior: Clip.antiAlias,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        IconButton(
-                          icon: Icon(Icons.edit_outlined),
-                          onPressed: () => _edit(e),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.delete_outline),
-                          onPressed: () => _delete(e),
+                        _buildPreviewRow(e),
+                        ListTile(
+                          leading: _buildAvatar(e),
+                          title: Text(
+                            e.name.isEmpty ? e.userId : e.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            e.comment.isEmpty
+                                ? 'uid: ${e.userId}'
+                                : '${e.comment} · uid: ${e.userId}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined),
+                                onPressed: () => _edit(e),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => _delete(e),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -302,9 +405,9 @@ class _HiddenArtistPageState extends State<HiddenArtistPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: '添加隐藏画师',
+        tooltip: '批量添加隐藏画师',
         onPressed: _add,
-        child: Icon(Icons.add),
+        child: const Icon(Icons.add),
       ),
     );
   }
