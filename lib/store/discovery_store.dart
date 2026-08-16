@@ -29,6 +29,7 @@ import 'package:pixez/models/user_detail.dart';
 import 'package:pixez/models/user_preview.dart';
 import 'package:pixez/network/api_client.dart';
 import 'package:pixez/saf_plugin.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// 隐藏画师的详情缓存（头像 + 作品预览，运行时拉取，不落库）
@@ -126,12 +127,13 @@ class DiscoveryStore {
     startPeriodicSync();
   }
 
-  /// 后台定时同步关注列表（每 6 小时一次），保证缓存与服务器一致
+  /// 后台定时增量同步关注列表（每 6 小时一次）。
+  /// 使用增量模式：只拉取最近新增的关注，遇到边界即停止，请求量小、耗时短。
   void startPeriodicSync() {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(const Duration(hours: 6), (_) {
       if (hideFollowedArtists || hidePublicFollowed) {
-        syncFollowed();
+        syncFollowedIncremental();
       }
     });
   }
@@ -233,8 +235,9 @@ class DiscoveryStore {
   }
 
   /// 全量同步当前账号关注列表（public + private），分页拉取，返回同步数量。
-  /// 每页请求之间间隔 2000ms 限流，避免触发服务器 429；
-  /// 单个请求超时 60 秒，避免网络挂起导致界面一直停留在同步中。
+  /// 支持断点续拉：每拉取一页就把进度（当前阶段、下一页地址、已收集数据）写入
+  /// 本地文件；中途失败/中断时，下一次同步会自动从断点继续而不是从头开始。
+  /// 每页间隔 2000ms 限流；单个请求 60 秒超时。
   Future<int> syncFollowed() async {
     if (_syncing) return 0;
     _syncing = true;
@@ -246,12 +249,30 @@ class DiscoveryStore {
       }
       final accountId = accountStore.now!.userId;
       final userId = int.parse(accountId);
+
+      // 尝试读取上次未完成的断点，实现断点续拉
+      final resume = await _readResume(accountId);
       final collected = <String, String>{};
-      for (final restrict in ['public', 'private']) {
+      var startIndex = 0;
+      String? startUrl;
+      if (resume != null) {
+        final saved = resume['collected'];
+        if (saved is Map) {
+          saved.forEach((k, v) => collected[k.toString()] = v.toString());
+        }
+        startIndex = resume['phase'] == 'private' ? 1 : 0;
+        startUrl = resume['next_url'] as String?;
+        if (startUrl != null && startUrl.isEmpty) startUrl = null;
+        _setSyncStatus('检测到未完成的同步，从断点继续（已拉取 ${collected.length} 位）…');
+      }
+
+      final phases = ['public', 'private'];
+      for (var i = startIndex; i < phases.length; i++) {
+        final restrict = phases[i];
         _setSyncStatus(restrict == 'public'
             ? '正在同步公开关注…'
             : '正在同步私密关注…');
-        String? nextUrl = null;
+        String? nextUrl = (i == startIndex) ? startUrl : null;
         do {
           Response response;
           if (nextUrl == null || nextUrl!.isEmpty) {
@@ -269,6 +290,8 @@ class DiscoveryStore {
           }
           nextUrl = data.next_url;
           _setSyncStatus('已拉取 ${collected.length} 位关注画师，继续翻页…');
+          // 每页记录断点，中断后可续拉
+          await _saveResume(accountId, restrict, nextUrl, collected);
           // 请求间隔 2 秒，避免频率过高被服务器限流（429）
           await Future.delayed(const Duration(milliseconds: 2000));
         } while (nextUrl != null && nextUrl.isNotEmpty);
@@ -277,6 +300,7 @@ class DiscoveryStore {
       }
       if (collected.isEmpty) {
         _setSyncStatus('同步完成：关注列表为空');
+        await _clearResume();
         return 0;
       }
       await followedProvider.open();
@@ -288,28 +312,171 @@ class DiscoveryStore {
               userId: e.key, name: e.value, accountId: accountId))
           .toList());
       await loadFollowed();
+      await _clearResume();
       _setSyncStatus('同步完成，共 ${collected.length} 位关注画师');
       return collected.length;
     } on TimeoutException {
-      _setSyncStatus('同步超时，请检查网络后重试');
+      _setSyncStatus('同步超时（断点已保存，下次同步自动续拉）');
       return 0;
     } catch (e) {
-      _setSyncStatus('同步失败，请检查网络或登录状态');
+      _setSyncStatus('同步失败（断点已保存，下次同步自动续拉）');
       return 0;
     } finally {
       _syncing = false;
     }
   }
 
+  /// 增量同步：从第一页开始拉取，遇到"整页都是已关注画师"的边界即停止，
+  /// 只写入新发现的关注，不删除已有缓存。适合后台定期调用，请求量小、耗时短。
+  Future<int> syncFollowedIncremental() async {
+    if (_syncing) return 0;
+    _syncing = true;
+    _setSyncStatus('开始增量同步…');
+    try {
+      if (accountStore.now == null) {
+        _setSyncStatus('尚未登录，无法同步关注列表');
+        return 0;
+      }
+      final accountId = accountStore.now!.userId;
+      final userId = int.parse(accountId);
+      await followedProvider.open();
+      // 当前账号已知的关注 uid（含迁移前的公共记录）
+      final known = <String>{};
+      for (final e in await followedProvider.getAll()) {
+        if (e.accountId == null || e.accountId == accountId) {
+          known.add(e.userId);
+        }
+      }
+      final newEntries = <String, String>{};
+      const maxPages = 10;
+      for (final restrict in ['public', 'private']) {
+        _setSyncStatus(restrict == 'public'
+            ? '增量同步公开关注…'
+            : '增量同步私密关注…');
+        String? nextUrl;
+        var pageCount = 0;
+        var stop = false;
+        do {
+          pageCount++;
+          if (pageCount > maxPages) {
+            _setSyncStatus('增量同步达到 $maxPages 页上限，停止');
+            break;
+          }
+          Response response;
+          if (nextUrl == null || nextUrl.isEmpty) {
+            response = await apiClient
+                .getUserFollowing(userId, restrict)
+                .timeout(const Duration(seconds: 60));
+          } else {
+            response = await apiClient
+                .getNext(nextUrl)
+                .timeout(const Duration(seconds: 60));
+          }
+          final data = UserPreviewsResponse.fromJson(response.data);
+          var allKnown = true;
+          for (final u in data.user_previews) {
+            final uid = u.user.id.toString();
+            if (known.contains(uid)) continue;
+            allKnown = false;
+            known.add(uid);
+            newEntries[uid] = u.user.name;
+          }
+          nextUrl = data.next_url;
+          _setSyncStatus('增量同步：已发现 ${newEntries.length} 位新关注，检查到边界即停止');
+          if (allKnown) {
+            stop = true;
+            _setSyncStatus('已到达最近关注边界，提前停止');
+          }
+          await Future.delayed(const Duration(milliseconds: 2000));
+        } while (!stop && nextUrl != null && nextUrl.isNotEmpty);
+        await Future.delayed(const Duration(milliseconds: 2000));
+      }
+      if (newEntries.isNotEmpty) {
+        await followedProvider.insertAll(newEntries.entries
+            .map((e) => FollowedArtistPersist(
+                userId: e.key, name: e.value, accountId: accountId))
+            .toList());
+      }
+      await loadFollowed();
+      _setSyncStatus(newEntries.isEmpty
+          ? '增量同步完成：没有新增关注'
+          : '增量同步完成：新增 ${newEntries.length} 位关注画师');
+      return newEntries.length;
+    } on TimeoutException {
+      _setSyncStatus('增量同步超时，请检查网络后重试');
+      return 0;
+    } catch (e) {
+      _setSyncStatus('增量同步失败，请检查网络或登录状态');
+      return 0;
+    } finally {
+      _syncing = false;
+    }
+  }
+
+  // ---------- 全量同步断点（断点续拉） ----------
+
+  Future<File> _resumeFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File(join(dir.path, 'sync_resume.json'));
+  }
+
+  /// 保存同步断点：阶段（public/private）、下一页地址、已收集数据、时间戳
+  Future<void> _saveResume(String accountId, String phase, String? nextUrl,
+      Map<String, String> collected) async {
+    try {
+      final file = await _resumeFile();
+      await file.writeAsString(jsonEncode({
+        'account_id': accountId,
+        'phase': phase,
+        'next_url': nextUrl,
+        'collected': collected,
+        'saved_at': DateTime.now().millisecondsSinceEpoch,
+      }));
+    } catch (e) {}
+  }
+
+  /// 读取当前账号的断点；无断点或超过 12 小时视为过期返回 null
+  Future<Map<String, dynamic>?> _readResume(String accountId) async {
+    try {
+      final file = await _resumeFile();
+      if (!await file.exists()) return null;
+      final data =
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      if (data['account_id'] != accountId) return null;
+      final savedAt = (data['saved_at'] as num?)?.toInt() ?? 0;
+      if (DateTime.now().millisecondsSinceEpoch - savedAt >
+          12 * 3600 * 1000) {
+        return null;
+      }
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> _clearResume() async {
+    try {
+      final file = await _resumeFile();
+      if (await file.exists()) await file.delete();
+    } catch (e) {}
+  }
+
   /// 清除当前账号的关注缓存（含迁移前的公共记录），不清除其他账号的数据。
-  /// 当旧版本数据异常或不兼容时可手动清理。
-  Future<void> clearFollowedCache() async {
-    await followedProvider.open();
-    final accountId = _currentAccountId;
-    await followedProvider.deleteByAccount(accountId);
-    await followedProvider.deleteByAccount(null);
-    await loadFollowed();
-    _setSyncStatus('已清除关注缓存');
+  /// 同时清除未完成的同步断点；返回是否成功。
+  Future<bool> clearFollowedCache() async {
+    try {
+      await followedProvider.open();
+      final accountId = _currentAccountId;
+      await followedProvider.deleteByAccount(accountId);
+      await followedProvider.deleteByAccount(null);
+      await _clearResume();
+      await loadFollowed();
+      _setSyncStatus('已清除关注缓存');
+      return true;
+    } catch (e) {
+      _setSyncStatus('清除缓存失败：$e');
+      return false;
+    }
   }
 
   // ---------- 隐藏画师列表（对所有账号生效） ----------

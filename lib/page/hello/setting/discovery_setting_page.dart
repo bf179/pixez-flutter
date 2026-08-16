@@ -70,35 +70,61 @@ class _DiscoverySettingPageState extends State<DiscoverySettingPage> {
           }),
           const Divider(),
           _buildSectionTitle('关注列表'),
-          // 同步关注列表：点击后后台执行，不占用操作焦点，状态实时刷新
+          // 全量同步：点击后后台执行，支持断点续拉，不占用操作焦点
           Observer(builder: (_) {
             final syncing = discoveryStore.syncing;
-            final status = discoveryStore.syncStatus;
             return ListTile(
               leading: const Icon(Icons.sync),
-              title: const Text('同步关注列表'),
+              title: const Text('同步关注列表（全量）'),
               subtitle: Text(
-                syncing
-                    ? status
-                    : '当前缓存 ${discoveryStore.followedUids.length} 位关注画师\n'
-                        '${status.isEmpty ? '' : '$status\n'}'
-                        '后台每 6 小时自动同步一次',
-                maxLines: 5,
-              ),
-              trailing: syncing
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : null,
+                  '点击全量同步，支持断点续拉\n当前缓存 ${discoveryStore.followedUids.length} 位关注画师'),
+              enabled: !syncing,
               onTap: () => discoveryStore.syncFollowed(),
+            );
+          }),
+          // 增量同步：只拉新增关注，遇到边界即停止
+          Observer(builder: (_) {
+            final syncing = discoveryStore.syncing;
+            return ListTile(
+              leading: const Icon(Icons.system_update_alt_outlined),
+              title: const Text('增量同步关注列表'),
+              subtitle: const Text('只拉取新增关注，遇到边界自动停止\n后台每 6 小时自动增量同步一次'),
+              enabled: !syncing,
+              onTap: () => discoveryStore.syncFollowedIncremental(),
+            );
+          }),
+          // 实时状态行
+          Observer(builder: (_) {
+            final status = discoveryStore.syncStatus;
+            final syncing = discoveryStore.syncing;
+            if (status.isEmpty) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Row(
+                children: [
+                  if (syncing) ...[
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      status,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 3,
+                    ),
+                  ),
+                ],
+              ),
             );
           }),
           ListTile(
             leading: const Icon(Icons.delete_sweep_outlined),
             title: const Text('清除关注缓存'),
-            subtitle: const Text('删除本账号缓存的关注画师记录（旧版本数据不兼容时使用，不影响其他账号）'),
+            subtitle: const Text('删除本账号缓存的关注记录与同步断点（旧版本数据不兼容时使用，不影响其他账号）'),
             onTap: () async {
               final ok = await showDialog<bool>(
                 context: context,
@@ -119,8 +145,9 @@ class _DiscoverySettingPageState extends State<DiscoverySettingPage> {
                 ),
               );
               if (ok == true) {
-                await discoveryStore.clearFollowedCache();
-                BotToast.showText(text: '已清除关注缓存');
+                final success = await discoveryStore.clearFollowedCache();
+                BotToast.showText(
+                    text: success ? '已清除关注缓存' : '清除缓存失败，请重试');
               }
             },
           ),

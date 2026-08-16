@@ -126,6 +126,11 @@ create table $tableFollowedArtist (
   }
 
   Future<List<FollowedArtistPersist>> getByAccount(String? accountId) async {
+    // accountId 为 null 时匹配旧数据（account_id IS NULL）的公共记录
+    final where = accountId == null
+        ? '$followedColumnAccountId IS NULL'
+        : '$followedColumnAccountId = ?';
+    final args = accountId == null ? [] : [accountId];
     List<Map<String, dynamic>> maps = await db.query(tableFollowedArtist,
         columns: [
           followedColumnId,
@@ -133,8 +138,8 @@ create table $tableFollowedArtist (
           followedColumnName,
           followedColumnAccountId
         ],
-        where: '$followedColumnAccountId = ?',
-        whereArgs: [accountId]);
+        where: where,
+        whereArgs: args);
     return maps.map((f) => FollowedArtistPersist.fromJson(f)).toList();
   }
 
@@ -148,8 +153,13 @@ create table $tableFollowedArtist (
   }
 
   Future<int> deleteByAccount(String? accountId) async {
+    // accountId 为 null 时必须用 IS NULL 才能匹配旧数据的公共记录
+    final where = accountId == null
+        ? '$followedColumnAccountId IS NULL'
+        : '$followedColumnAccountId = ?';
+    final args = accountId == null ? [] : [accountId];
     return await db.delete(tableFollowedArtist,
-        where: '$followedColumnAccountId = ?', whereArgs: [accountId]);
+        where: where, whereArgs: args);
   }
 
   Future<int> update(FollowedArtistPersist todo) async {
